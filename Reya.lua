@@ -1,6 +1,6 @@
 -- ============================================
--- REYA HUB - WORKING VERSION
--- Based on Reelz Hub structure
+-- REYA HUB - NO KEY SYSTEM (FIXED)
+-- Completely bypass key system
 -- ============================================
 
 repeat task.wait() until game:IsLoaded()
@@ -18,7 +18,6 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local TeleportService = game:GetService("TeleportService")
-local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
@@ -32,17 +31,6 @@ local net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):Wa
 -- ============================================
 -- UTILITY FUNCTIONS
 -- ============================================
-local function getFishCount()
-    local success, count = pcall(function()
-        local bagLabel = LocalPlayer.PlayerGui:WaitForChild("Inventory")
-            :WaitForChild("Main"):WaitForChild("Top")
-            :WaitForChild("Options"):WaitForChild("Fish")
-            :WaitForChild("Label"):WaitForChild("BagSize")
-        return tonumber((bagLabel.Text or "0/???"):match("(%d+)/")) or 0
-    end)
-    return success and count or 0
-end
-
 local function MoveTo(cframe)
     pcall(function()
         local char = LocalPlayer.Character
@@ -111,7 +99,7 @@ task.spawn(function()
     end
 end)
 
--- Auto reel when fish caught
+-- Auto reel
 net["RE/ReplicateTextEffect"].OnClientEvent:Connect(function(data)
     if _G.AutoFish and _G.ActiveFishing and data then
         local myHead = Character and Character:FindFirstChild("Head")
@@ -127,7 +115,7 @@ net["RE/ReplicateTextEffect"].OnClientEvent:Connect(function(data)
 end)
 
 -- ============================================
--- AUTO SELL FUNCTION
+-- AUTO SELL
 -- ============================================
 _G.AutoSell = false
 _G.SellDelay = 20
@@ -162,26 +150,110 @@ local TeleportLocations = {
 }
 
 -- ============================================
--- CREATE WINDOW
+-- CREATE WINDOW - TRY MULTIPLE METHODS
 -- ============================================
-local Window = WindUI:CreateWindow({
-    Title = "Reya Hub",
-    Icon = "fish",
-    Author = "Reya",
-    Folder = "ReyaHub",
-    Size = UDim2.fromOffset(550, 650),
-    KeySystem = {
-        Key = "",
-        Note = "No key needed",
-        SaveKey = false,
-        Keys = {}
-    },
-    SideBarWidth = 170,
-    HasOutline = true,
-    Transparent = false,
-    Theme = "Dark",
-    ShowUserInfo = true
-})
+local Window
+
+-- Method 1: No KeySystem at all
+local success1 = pcall(function()
+    Window = WindUI:CreateWindow({
+        Title = "Reya Hub",
+        Icon = "fish",
+        Author = "Reya",
+        Folder = "ReyaHub",
+        Size = UDim2.fromOffset(550, 650),
+        SideBarWidth = 170,
+        HasOutline = true,
+        Transparent = false,
+        Theme = "Dark",
+        ShowUserInfo = true
+    })
+end)
+
+-- Method 2: KeySystem = false
+if not success1 or not Window then
+    local success2 = pcall(function()
+        Window = WindUI:CreateWindow({
+            Title = "Reya Hub",
+            Icon = "fish",
+            Author = "Reya",
+            Folder = "ReyaHub",
+            Size = UDim2.fromOffset(550, 650),
+            KeySystem = false,
+            SideBarWidth = 170,
+            HasOutline = true,
+            Transparent = false,
+            Theme = "Dark",
+            ShowUserInfo = true
+        })
+    end)
+end
+
+-- Method 3: KeySystem with Enabled = false
+if not Window then
+    local success3 = pcall(function()
+        Window = WindUI:CreateWindow({
+            Title = "Reya Hub",
+            Icon = "fish",
+            Author = "Reya",
+            Folder = "ReyaHub",
+            Size = UDim2.fromOffset(550, 650),
+            KeySystem = {
+                Enabled = false
+            },
+            SideBarWidth = 170,
+            HasOutline = true,
+            Transparent = false,
+            Theme = "Dark",
+            ShowUserInfo = true
+        })
+    end)
+end
+
+-- Method 4: KeySystem with blank key (auto-accept)
+if not Window then
+    Window = WindUI:CreateWindow({
+        Title = "Reya Hub",
+        Icon = "fish",
+        Author = "Reya",
+        Folder = "ReyaHub",
+        Size = UDim2.fromOffset(550, 650),
+        KeySystem = {
+            Key = "nokey",
+            Note = "No key needed - Type anything",
+            SaveKey = true,
+            Keys = {"", "nokey", "free"},
+            GrabKeyFromSite = false
+        },
+        SideBarWidth = 170,
+        HasOutline = true,
+        Transparent = false,
+        Theme = "Dark",
+        ShowUserInfo = true
+    })
+    
+    -- Auto submit if key window appears
+    task.spawn(function()
+        task.wait(0.5)
+        -- Try to find and click submit button
+        for _, gui in pairs(game:GetService("CoreGui"):GetDescendants()) do
+            if gui:IsA("TextButton") and (gui.Text:lower():find("submit") or gui.Text:lower():find("enter")) then
+                for _, connection in pairs(getconnections(gui.MouseButton1Click)) do
+                    connection:Fire()
+                end
+            end
+        end
+    end)
+end
+
+if not Window then
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Error",
+        Text = "Failed to create window",
+        Duration = 10
+    })
+    return
+end
 
 -- ============================================
 -- INFO TAB
@@ -202,41 +274,6 @@ InfoSection:Label({
     Description = "Fish It Automation Hub"
 })
 
-InfoSection:Divider()
-
-local GameTimeParagraph = InfoSection:Paragraph({
-    Name = "Game Time",
-    Description = "Loading..."
-})
-
-local FpsParagraph = InfoSection:Paragraph({
-    Name = "FPS",
-    Description = "0"
-})
-
-local PingParagraph = InfoSection:Paragraph({
-    Name = "Ping",
-    Description = "0 ms"
-})
-
--- Update stats
-task.spawn(function()
-    while task.wait(1) do
-        pcall(function()
-            local GameTime = math.floor(Workspace.DistributedGameTime + 0.5)
-            local Hour = math.floor(GameTime / 3600) % 24
-            local Minute = math.floor(GameTime / 60) % 60
-            local Second = math.floor(GameTime) % 60
-            
-            GameTimeParagraph:SetDescription(string.format("%02d:%02d:%02d", Hour, Minute, Second))
-            FpsParagraph:SetDescription(tostring(math.floor(Workspace:GetRealPhysicsFPS())))
-            
-            local ping = game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValueString()
-            PingParagraph:SetDescription(ping)
-        end)
-    end
-end)
-
 -- ============================================
 -- FISHING TAB
 -- ============================================
@@ -251,19 +288,9 @@ local AutoFishingSection = FishingTab:Section({
     Side = "Left"
 })
 
-AutoFishingSection:Dropdown({
-    Name = "Fishing Method",
-    Description = "Choose fishing method",
-    Options = {"Instant"},
-    Default = "Instant",
-    Callback = function(value)
-        _G.FishingMethod = value
-    end
-})
-
 AutoFishingSection:Slider({
     Name = "Instant Delay",
-    Description = "Delay between reels (seconds)",
+    Description = "Delay between reels",
     Min = 0,
     Max = 5,
     Default = 0.1,
@@ -282,7 +309,6 @@ AutoFishingSection:Toggle({
         if not state then
             StopFish()
         end
-        
         Window:Notification({
             Title = state and "Enabled" or "Disabled",
             Description = "Auto Fishing " .. (state and "activated" or "stopped"),
@@ -291,9 +317,6 @@ AutoFishingSection:Toggle({
     end
 })
 
--- ============================================
--- AUTO SELL SECTION
--- ============================================
 local AutoSellSection = FishingTab:Section({
     Name = "Auto Sell",
     Side = "Right"
@@ -301,7 +324,7 @@ local AutoSellSection = FishingTab:Section({
 
 AutoSellSection:Slider({
     Name = "Sell Delay",
-    Description = "Delay between sells (seconds)",
+    Description = "Delay between sells",
     Min = 1,
     Max = 60,
     Default = 20,
@@ -317,7 +340,6 @@ AutoSellSection:Toggle({
     Default = false,
     Callback = function(state)
         _G.AutoSell = state
-        
         Window:Notification({
             Title = state and "Enabled" or "Disabled",
             Description = "Auto Sell " .. (state and "activated" or "stopped"),
@@ -350,7 +372,7 @@ local selectedLocation = locationNames[1]
 
 LocationSection:Dropdown({
     Name = "Select Location",
-    Description = "Choose teleport destination",
+    Description = "Choose destination",
     Options = locationNames,
     Default = locationNames[1],
     Callback = function(value)
@@ -360,7 +382,7 @@ LocationSection:Dropdown({
 
 LocationSection:Button({
     Name = "Teleport",
-    Description = "Go to selected location",
+    Description = "Go to location",
     Callback = function()
         if selectedLocation and TeleportLocations[selectedLocation] then
             MoveTo(TeleportLocations[selectedLocation])
@@ -453,93 +475,11 @@ OxygenSection:Button({
 })
 
 -- ============================================
--- SERVER TAB
--- ============================================
-local ServerTab = Window:Tab({
-    Name = "Server",
-    Icon = "server",
-    Color = Color3.fromRGB(100, 100, 255)
-})
-
-local ServerSection = ServerTab:Section({
-    Name = "Server Controls",
-    Side = "Left"
-})
-
-ServerSection:Button({
-    Name = "Rejoin Server",
-    Description = "Rejoin current server",
-    Callback = function()
-        TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId)
-    end
-})
-
-ServerSection:Button({
-    Name = "Server Hop",
-    Description = "Join different server",
-    Callback = function()
-        local success = pcall(function()
-            local module = loadstring(game:HttpGet("https://raw.githubusercontent.com/raw-scriptpastebin/FE/main/Server_Hop_Settings"))()
-            module:Teleport(game.PlaceId)
-        end)
-        
-        if not success then
-            Window:Notification({
-                Title = "Error",
-                Description = "Server hop failed",
-                Duration = 3
-            })
-        end
-    end
-})
-
-local JobIdSection = ServerTab:Section({
-    Name = "Job ID",
-    Side = "Right"
-})
-
-JobIdSection:Paragraph({
-    Name = "Current Job ID",
-    Description = game.JobId
-})
-
-JobIdSection:Button({
-    Name = "Copy Job ID",
-    Callback = function()
-        if setclipboard then
-            setclipboard(game.JobId)
-            Window:Notification({
-                Title = "Copied",
-                Description = "Job ID copied to clipboard",
-                Duration = 3
-            })
-        end
-    end
-})
-
--- ============================================
--- AUTO REJOIN ON DISCONNECT
--- ============================================
-task.spawn(function()
-    while task.wait(5) do
-        if not LocalPlayer or not LocalPlayer:IsDescendantOf(game) then
-            TeleportService:Teleport(game.PlaceId)
-        end
-    end
-end)
-
-TeleportService.TeleportInitFailed:Connect(function(player, teleportResult)
-    if teleportResult == Enum.TeleportResult.Failure then
-        TeleportService:Teleport(game.PlaceId)
-    end
-end)
-
--- ============================================
 -- SUCCESS
 -- ============================================
 Window:Notification({
     Title = "Reya Hub",
-    Description = "Hub loaded successfully!\nEnjoy fishing! 🎣",
+    Description = "Hub loaded successfully! 🎣",
     Duration = 5
 })
 
@@ -548,11 +488,4 @@ print("✅ REYA HUB LOADED!")
 print("════════════════════════════════════════")
 print("PlaceID:", game.PlaceId)
 print("Player:", LocalPlayer.Name)
-print("Features:")
-print("  • Instant Fishing")
-print("  • Auto Sell")
-print("  • Location Teleport (12+ spots)")
-print("  • Player Teleport")
-print("  • Oxygen Bypass")
-print("  • Server Controls")
 print("════════════════════════════════════════")
