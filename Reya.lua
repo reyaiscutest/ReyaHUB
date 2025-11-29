@@ -1,27 +1,26 @@
 -- ============================================
--- FISH IT HUB - STANDALONE VERSION (FIXED)
--- No external dependencies, works standalone
+-- Reya HUB - WINDUI (CORRECT VERSION)
+-- Using: https://github.com/Footagesus/WindUI
 -- ============================================
 
--- Wait for game to load
 repeat task.wait() until game:IsLoaded()
 task.wait(2)
 
 -- ============================================
--- SERVICES & SAFE LOADING
+-- SERVICES
 -- ============================================
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
-local StarterGui = game:GetService("StarterGui")
 
 local LocalPlayer = Players.LocalPlayer
 
--- Safe notification function
-local function SafeNotify(title, text, duration)
+-- ============================================
+-- SAFE NOTIFICATION
+-- ============================================
+local function Notify(title, text, duration)
     pcall(function()
-        StarterGui:SetCore("SendNotification", {
+        game:GetService("StarterGui"):SetCore("SendNotification", {
             Title = title,
             Text = text,
             Duration = duration or 5
@@ -30,81 +29,31 @@ local function SafeNotify(title, text, duration)
 end
 
 -- ============================================
--- SAFE NETWORK LOADING
+-- LOAD GAME COMPONENTS
 -- ============================================
-local Net, FishingController, ChargeRod, StartMini, FishDone, CancelFishing, EquipRod
+Notify("Loading...", "Loading game components...", 3)
 
-local function LoadNetworkComponents()
-    local success, err = pcall(function()
-        -- Try to load Net module
-        local netPath = ReplicatedStorage:FindFirstChild("Packages")
-        if netPath then
-            netPath = netPath:FindFirstChild("_Index")
-            if netPath then
-                netPath = netPath:FindFirstChild("sleitnick_net@0.2.0")
-                if netPath then
-                    Net = netPath:FindFirstChild("net")
-                end
-            end
+local Net, ChargeRod, StartMini, FishDone, CancelFishing, EquipRod
+
+pcall(function()
+    for _, v in pairs(ReplicatedStorage:GetDescendants()) do
+        if v.Name == "net" and v:IsA("Folder") then
+            Net = v
+            break
         end
-        
-        if not Net then
-            -- Alternative path
-            for _, v in pairs(ReplicatedStorage:GetDescendants()) do
-                if v.Name == "net" and v:IsA("Folder") then
-                    Net = v
-                    break
-                end
-            end
-        end
-        
-        if Net then
-            ChargeRod = Net:FindFirstChild("RF/ChargeFishingRod")
-            StartMini = Net:FindFirstChild("RF/RequestFishingMinigameStarted")
-            FishDone = Net:FindFirstChild("RE/FishingCompleted")
-            CancelFishing = Net:FindFirstChild("RF/CancelFishingInputs")
-            EquipRod = Net:FindFirstChild("RE/EquipToolFromHotbar")
-        end
-        
-        -- Try to load FishingController
-        local controllersPath = ReplicatedStorage:FindFirstChild("Controllers")
-        if controllersPath then
-            local fishingCtrl = controllersPath:FindFirstChild("FishingController")
-            if fishingCtrl then
-                FishingController = require(fishingCtrl)
-            end
-        end
-    end)
+    end
     
-    return success, err
-end
-
-SafeNotify("Loading...", "Loading network components...", 3)
-local loadSuccess, loadError = LoadNetworkComponents()
-
-if not loadSuccess then
-    SafeNotify("Error", "Failed to load game modules\nGame might have updated", 10)
-    warn("Load Error:", loadError)
-    return
-end
+    if Net then
+        ChargeRod = Net:FindFirstChild("RF/ChargeFishingRod")
+        StartMini = Net:FindFirstChild("RF/RequestFishingMinigameStarted")
+        FishDone = Net:FindFirstChild("RE/FishingCompleted")
+        CancelFishing = Net:FindFirstChild("RF/CancelFishingInputs")
+        EquipRod = Net:FindFirstChild("RE/EquipToolFromHotbar")
+    end
+end)
 
 if not (ChargeRod and StartMini and FishDone) then
-    SafeNotify("Error", "Required game functions not found\nGame might have updated", 10)
-    warn("Missing components!")
-    warn("ChargeRod:", ChargeRod ~= nil)
-    warn("StartMini:", StartMini ~= nil)
-    warn("FishDone:", FishDone ~= nil)
-    return
-end
-
--- ============================================
--- CHARACTER HANDLING
--- ============================================
-local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart", 10)
-
-if not HumanoidRootPart then
-    SafeNotify("Error", "Character not loaded properly", 10)
+    Notify("Error", "Required game components not found", 10)
     return
 end
 
@@ -123,40 +72,29 @@ local function getFishCount()
 end
 
 -- ============================================
--- INSTANT FISHING
+-- FISHING MODULES
 -- ============================================
-local InstantFishing = {
-    Enabled = false,
-    CanFish = true
-}
+local InstantFishing = {Enabled = false, CanFish = true}
+local BlatantFishing = {Enabled = false, CancelWaitTime = 3, LastFishTime = 0}
 
 function StartInstantFishing()
     InstantFishing.Enabled = true
-    
     task.spawn(function()
         while InstantFishing.Enabled do
             if InstantFishing.CanFish then
                 InstantFishing.CanFish = false
-                
-                local success = pcall(function()
+                pcall(function()
                     local serverTime = Workspace:GetServerTimeNow()
                     ChargeRod:InvokeServer(serverTime)
                     task.wait(0.1)
                     StartMini:InvokeServer(-1, 0.999)
-                    
                     local initialCount = getFishCount()
                     local startTime = tick()
-                    
                     repeat
                         FishDone:FireServer()
                         task.wait(0.1)
                     until initialCount < getFishCount() or tick() - startTime >= 5
                 end)
-                
-                if not success then
-                    task.wait(1)
-                end
-                
                 InstantFishing.CanFish = true
             end
             task.wait(0.1)
@@ -168,69 +106,22 @@ function StopInstantFishing()
     InstantFishing.Enabled = false
 end
 
--- ============================================
--- BLATANT FISHING
--- ============================================
-local BlatantFishing = {
-    Enabled = false,
-    CancelWaitTime = 3,
-    LastFishTime = 0,
-    HasFishingEffect = false
-}
-
--- Hook Fish Caught (Safe)
-if FishingController then
-    pcall(function()
-        local OriginalFishCaught = FishingController.FishCaught
-        function FishingController.FishCaught(...)
-            if BlatantFishing.Enabled then
-                BlatantFishing.LastFishTime = tick()
-            end
-            return OriginalFishCaught(...)
-        end
-    end)
-end
-
--- Monitor Effects (Safe)
-pcall(function()
-    local PlayFishEffect = Net:FindFirstChild("RE/PlayFishingEffect")
-    if PlayFishEffect and PlayFishEffect:IsA("RemoteEvent") then
-        PlayFishEffect.OnClientEvent:Connect(function(player, _, effectType)
-            if player == LocalPlayer and effectType == 2 then
-                BlatantFishing.HasFishingEffect = true
-            end
-        end)
-    end
-end)
-
 function StartBlatantFishing()
     BlatantFishing.Enabled = true
-    
-    -- Continuous Fishing
     task.spawn(function()
         while BlatantFishing.Enabled do
-            pcall(function()
-                FishDone:FireServer()
-            end)
+            pcall(function() FishDone:FireServer() end)
             task.wait(0.2)
         end
     end)
-    
-    -- Auto Cancel
     task.spawn(function()
         while BlatantFishing.Enabled do
             task.wait(BlatantFishing.CancelWaitTime)
-            
-            if not BlatantFishing.HasFishingEffect and 
-               tick() - BlatantFishing.LastFishTime > BlatantFishing.CancelWaitTime then
+            if tick() - BlatantFishing.LastFishTime > BlatantFishing.CancelWaitTime then
                 pcall(function()
-                    if CancelFishing then
-                        CancelFishing:InvokeServer()
-                    end
+                    if CancelFishing then CancelFishing:InvokeServer() end
                 end)
             end
-            
-            BlatantFishing.HasFishingEffect = false
         end
     end)
 end
@@ -238,9 +129,7 @@ end
 function StopBlatantFishing()
     BlatantFishing.Enabled = false
     pcall(function()
-        if CancelFishing then
-            CancelFishing:InvokeServer()
-        end
+        if CancelFishing then CancelFishing:InvokeServer() end
     end)
 end
 
@@ -250,7 +139,7 @@ end
 local TeleportLocations = {
     ["Treasure Room"] = Vector3.new(-3602.01, -266.57, -1577.18),
     ["Sisyphus Statue"] = Vector3.new(-3703.69, -135.57, -1017.17),
-    ["Crater Island Top"] = Vector3.new(1011.29, 22.68, 5076.27),
+    ["Crater Island"] = Vector3.new(1011.29, 22.68, 5076.27),
     ["Coral Reefs"] = Vector3.new(-3031.88, 2.52, 2276.36),
     ["Weather Machine"] = Vector3.new(-1524.88, 2.87, 1915.56),
     ["Kohana Volcano"] = Vector3.new(-561.81, 21.24, 156.72),
@@ -259,123 +148,159 @@ local TeleportLocations = {
     ["Mount Hallow"] = Vector3.new(2123, 80, 3265),
 }
 
-function TeleportToLocation(locationName)
-    local position = TeleportLocations[locationName]
-    if position then
-        local success = pcall(function()
-            local char = LocalPlayer.Character
-            local hrp = char and char:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                hrp.CFrame = CFrame.new(position + Vector3.new(0, 3, 0))
-            end
-        end)
-        return success
-    end
-    return false
-end
-
-function TeleportToPlayer(playerName)
-    local success = pcall(function()
-        local targetPlayer = Players:FindFirstChild(playerName)
-        if targetPlayer and targetPlayer.Character then
-            local targetHRP = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-            local myHRP = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if targetHRP and myHRP then
-                myHRP.CFrame = targetHRP.CFrame + Vector3.new(0, 3, 0)
-            end
+local function TeleportTo(position)
+    pcall(function()
+        local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            hrp.CFrame = CFrame.new(position + Vector3.new(0, 3, 0))
         end
     end)
-    return success
 end
 
-function GetPlayerList()
-    local playerList = {}
+local function GetPlayerList()
+    local list = {}
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
-            table.insert(playerList, player.Name)
+            table.insert(list, player.Name)
         end
     end
-    return playerList
+    return list
 end
 
 -- ============================================
--- LOAD WINDUI
+-- LOAD WINDUI (CORRECT VERSION)
 -- ============================================
-SafeNotify("Loading UI...", "Loading WindUI library...", 3)
+Notify("Loading UI...", "Loading WindUI library...", 3)
 
 local WindUI
-local loadUISuccess, loadUIError = pcall(function()
-    WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/mstudio45/MSDOORS/main/Libs/Wind/source.lua"))()
-end)
+local loadSuccess = false
 
-if not loadUISuccess or not WindUI then
-    SafeNotify("Error", "Failed to load UI library\nTry again later", 10)
-    warn("WindUI Load Error:", loadUIError)
+-- Try multiple URLs
+local urls = {
+    "https://raw.githubusercontent.com/reyaiscutest/ReyaHUB/main/Reya.lua",
+    "https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua",
+    "https://raw.githubusercontent.com/Footagesus/WindUI/refs/heads/main/dist/main.lua"
+}
+
+for _, url in ipairs(urls) do
+    local success, result = pcall(function()
+        return loadstring(game:HttpGet(url))()
+    end)
+    
+    if success and result then
+        WindUI = result
+        loadSuccess = true
+        print("[Fish It Hub] Loaded WindUI from:", url)
+        break
+    else
+        warn("[Fish It Hub] Failed to load from:", url)
+    end
+end
+
+if not loadSuccess or not WindUI then
+    Notify("Error", "Failed to load WindUI\nUsing fallback UI", 10)
+    -- Load custom UI fallback here if needed
     return
 end
 
 -- ============================================
--- CREATE UI
+-- CREATE WINDOW
 -- ============================================
 local Window = WindUI:CreateWindow({
     Title = "Fish It Hub",
-    Icon = "rbxassetid://10723415766",
-    Author = "Fixed Version",
+    Icon = "fish",
+    Author = "Your Name",
     Folder = "FishItHub",
-    Size = UDim2.fromOffset(500, 600),
-    Position = UDim2.new(0.5, 0, 0.5, 0),
+    Size = UDim2.fromOffset(550, 650),
+    KeySystem = {
+        Key = "",
+        Note = "No key needed",
+        SaveKey = false,
+        Keys = {},
+        GrabKeyFromSite = false,
+        Actions = {
+            [1] = {
+                Text = "Open Discord",
+                Link = ""
+            }
+        }
+    },
+    SideBarWidth = 170,
+    HasOutline = true,
+    Transparent = false,
     Theme = "Dark",
-    DisableDragging = false,
-    ShowIcon = true
+    ShowUserInfo = true,
+    Crosshair = {
+        Enabled = false,
+        Color = Color3.fromRGB(255, 255, 255)
+    }
 })
 
 -- ============================================
 -- FISHING TAB
 -- ============================================
-local FishingTab = Window:CreateTab({
+local FishingTab = Window:Tab({
     Name = "Fishing",
-    Icon = "rbxassetid://10723424838",
-    Visible = true
+    Icon = "fish",
+    Color = Color3.fromRGB(0, 170, 255)
 })
 
-local FishingSection = FishingTab:CreateSection({
-    Name = "Fishing Features"
+local FishingSection = FishingTab:Section({
+    Name = "Fishing Features",
+    Side = "Left"
 })
 
-FishingSection:CreateToggle({
+FishingSection:Toggle({
     Name = "Instant Fishing",
     Description = "Catch fish instantly (Recommended)",
-    Flag = "InstantFishing",
     Default = false,
     Callback = function(enabled)
         if enabled then
             StartInstantFishing()
+            Window:Notification({
+                Title = "Enabled",
+                Description = "Instant Fishing activated!",
+                Duration = 3
+            })
         else
             StopInstantFishing()
+            Window:Notification({
+                Title = "Disabled",
+                Description = "Instant Fishing stopped",
+                Duration = 3
+            })
         end
     end
 })
 
-FishingSection:CreateDivider()
+FishingSection:Divider()
 
-FishingSection:CreateToggle({
+FishingSection:Toggle({
     Name = "Blatant Fishing",
     Description = "Fast fishing with animation",
-    Flag = "BlatantFishing",
     Default = false,
     Callback = function(enabled)
         if enabled then
             StartBlatantFishing()
+            Window:Notification({
+                Title = "Enabled",
+                Description = "Blatant Fishing activated!",
+                Duration = 3
+            })
         else
             StopBlatantFishing()
+            Window:Notification({
+                Title = "Disabled",
+                Description = "Blatant Fishing stopped",
+                Duration = 3
+            })
         end
     end
 })
 
-FishingSection:CreateSlider({
+FishingSection:Slider({
     Name = "Blatant Delay",
     Description = "Adjust delay (seconds)",
-    Flag = "BlatantDelay",
     Min = 1,
     Max = 10,
     Default = 3,
@@ -388,14 +313,15 @@ FishingSection:CreateSlider({
 -- ============================================
 -- TELEPORT TAB
 -- ============================================
-local TeleportTab = Window:CreateTab({
+local TeleportTab = Window:Tab({
     Name = "Teleport",
-    Icon = "rbxassetid://10723434711",
-    Visible = true
+    Icon = "map-pin",
+    Color = Color3.fromRGB(255, 150, 0)
 })
 
-local LocationSection = TeleportTab:CreateSection({
-    Name = "Teleport to Location"
+local LocationSection = TeleportTab:Section({
+    Name = "Teleport to Location",
+    Side = "Left"
 })
 
 local locationNames = {}
@@ -404,87 +330,132 @@ for name, _ in pairs(TeleportLocations) do
 end
 table.sort(locationNames)
 
-local selectedLocation = nil
+local selectedLocation = locationNames[1]
 
-LocationSection:CreateDropdown({
+LocationSection:Dropdown({
     Name = "Select Location",
-    Description = "Choose location",
+    Description = "Choose a location to teleport",
     Options = locationNames,
     Default = locationNames[1],
-    Flag = "LocationDropdown",
-    Callback = function(selected)
-        selectedLocation = selected
+    Callback = function(value)
+        selectedLocation = value
     end
 })
 
-LocationSection:CreateButton({
+LocationSection:Button({
     Name = "Teleport",
     Description = "Go to selected location",
     Callback = function()
-        if selectedLocation and TeleportToLocation(selectedLocation) then
-            Window:Notify({
-                Title = "Success",
-                Content = "Teleported to " .. selectedLocation,
+        if selectedLocation and TeleportLocations[selectedLocation] then
+            TeleportTo(TeleportLocations[selectedLocation])
+            Window:Notification({
+                Title = "Teleported",
+                Description = "Moved to " .. selectedLocation,
                 Duration = 3
             })
         end
     end
 })
 
-local PlayerSection = TeleportTab:CreateSection({
-    Name = "Teleport to Player"
+-- Player Teleport Section
+local PlayerSection = TeleportTab:Section({
+    Name = "Teleport to Player",
+    Side = "Right"
 })
 
-local selectedPlayer = nil
-local PlayerDropdown = PlayerSection:CreateDropdown({
+local playerList = GetPlayerList()
+local selectedPlayer = playerList[1]
+
+local PlayerDropdown = PlayerSection:Dropdown({
     Name = "Select Player",
-    Options = GetPlayerList(),
-    Default = "Select Player",
-    Flag = "PlayerDropdown",
-    Callback = function(selected)
-        selectedPlayer = selected
+    Options = playerList,
+    Default = playerList[1] or "No Players",
+    Callback = function(value)
+        selectedPlayer = value
     end
 })
 
-PlayerSection:CreateButton({
+PlayerSection:Button({
     Name = "Refresh Players",
     Callback = function()
-        PlayerDropdown:SetOptions(GetPlayerList())
-        Window:Notify({
+        playerList = GetPlayerList()
+        -- Update dropdown (WindUI specific method)
+        Window:Notification({
             Title = "Refreshed",
-            Content = "Player list updated",
+            Description = "Player list updated",
             Duration = 2
         })
     end
 })
 
-PlayerSection:CreateButton({
+PlayerSection:Button({
     Name = "Teleport",
     Callback = function()
-        if selectedPlayer and TeleportToPlayer(selectedPlayer) then
-            Window:Notify({
-                Title = "Success",
-                Content = "Teleported to " .. selectedPlayer,
-                Duration = 3
-            })
+        if selectedPlayer then
+            local targetPlayer = Players:FindFirstChild(selectedPlayer)
+            if targetPlayer and targetPlayer.Character then
+                local targetHRP = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+                local myHRP = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if targetHRP and myHRP then
+                    myHRP.CFrame = targetHRP.CFrame + Vector3.new(0, 3, 0)
+                    Window:Notification({
+                        Title = "Teleported",
+                        Description = "Moved to " .. selectedPlayer,
+                        Duration = 3
+                    })
+                end
+            end
         end
     end
 })
 
 -- ============================================
+-- CREDITS TAB
+-- ============================================
+local CreditsTab = Window:Tab({
+    Name = "Credits",
+    Icon = "info",
+    Color = Color3.fromRGB(150, 150, 150)
+})
+
+local CreditsSection = CreditsTab:Section({
+    Name = "Information",
+    Side = "Left"
+})
+
+CreditsSection:Label({
+    Name = "Fish It Hub v1.0",
+    Description = "Created by: Your Name"
+})
+
+CreditsSection:Divider()
+
+CreditsSection:Paragraph({
+    Name = "Features",
+    Description = [[
+• Instant Fishing - No animation
+• Blatant Fishing - With animation
+• Location Teleport - 9+ spots
+• Player Teleport
+• Clean WindUI interface
+    ]]
+})
+
+-- ============================================
 -- SUCCESS
 -- ============================================
-SafeNotify("✅ Loaded!", "Fish It Hub ready!\nEnjoy fishing! 🎣", 5)
-Window:Notify({
+Window:Notification({
     Title = "Reya Hub",
-    Content = "Hub loaded successfully!\nEnjoy! 🎣",
+    Description = "Hub loaded successfully!\nEnjoy fishing! 🎣",
     Duration = 5
 })
 
-print("════════════════════════════════════")
-print("✅ Reya HUB LOADED SUCCESSFULLY")
-print("════════════════════════════════════")
+Notify("✅ Success!", "Fish It Hub loaded successfully!", 5)
+
+print("════════════════════════════════════════")
+print("✅ Reya HUB LOADED!")
+print("════════════════════════════════════════")
 print("PlaceID:", game.PlaceId)
 print("Player:", LocalPlayer.Name)
 print("Features: Instant Fishing, Blatant Fishing, Teleport")
-print("════════════════════════════════════")
+print("════════════════════════════════════════")
