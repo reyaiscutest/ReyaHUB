@@ -1,5 +1,5 @@
 -- ============================================
--- REYA HUB - FIXED VERSION
+-- REYA HUB - RAYFIELD UI VERSION
 -- ============================================
 
 repeat task.wait() until game:IsLoaded()
@@ -8,9 +8,9 @@ task.wait(1)
 print("🔄 Loading Reya Hub...")
 
 -- ============================================
--- LOAD FLUENT UI LIBRARY
+-- LOAD RAYFIELD UI LIBRARY
 -- ============================================
-local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 -- ============================================
 -- SERVICES & VARIABLES
@@ -154,53 +154,57 @@ local TeleportLocations = {
 -- ============================================
 -- CREATE WINDOW
 -- ============================================
-local Window = Fluent:CreateWindow({
-    Title = "Reya Hub",
-    SubTitle = "Fish It Automation",
-    TabWidth = 160,
-    Size = UDim2.fromOffset(580, 460),
-    Acrylic = true,
-    Theme = "Dark",
-    MinimizeKey = Enum.KeyCode.LeftControl
+local Window = Rayfield:CreateWindow({
+    Name = "Reya Hub",
+    LoadingTitle = "Reya Hub",
+    LoadingSubtitle = "by Reya",
+    ConfigurationSaving = {
+        Enabled = false,
+        FolderName = nil,
+        FileName = "ReyaHub"
+    },
+    Discord = {
+        Enabled = false,
+        Invite = "noinvitelink",
+        RememberJoins = true
+    },
+    KeySystem = false,
+    KeySettings = {
+        Title = "Reya Hub",
+        Subtitle = "Key System",
+        Note = "No Key Needed",
+        FileName = "Key",
+        SaveKey = false,
+        GrabKeyFromSite = false,
+        Key = {""}
+    }
 })
-
-local Tabs = {
-    Home = Window:AddTab({ Title = "Home", Icon = "home" }),
-    Fishing = Window:AddTab({ Title = "Fishing", Icon = "fish" }),
-    Teleport = Window:AddTab({ Title = "Teleport", Icon = "map-pin" }),
-    Misc = Window:AddTab({ Title = "Misc", Icon = "settings" }),
-    Server = Window:AddTab({ Title = "Server", Icon = "server" })
-}
 
 -- ============================================
 -- HOME TAB
 -- ============================================
-Tabs.Home:AddParagraph({
-    Title = "Welcome to Reya Hub!",
-    Content = "Fish It automation script with multiple features.\n\nVersion: 1.0\nAuthor: Reya"
+local HomeTab = Window:CreateTab("🏠 Home", 4483362458)
+local HomeSection = HomeTab:CreateSection("Welcome")
+
+HomeTab:CreateParagraph({
+    Title = "Reya Hub v1.0",
+    Content = "Fish It automation script with multiple features.\n\nMade by: Reya"
 })
 
-local StatsSection = Tabs.Home:AddSection("Statistics")
+local StatsSection = HomeTab:CreateSection("Statistics")
 
-local FPSLabel = Tabs.Home:AddParagraph({
-    Title = "FPS",
-    Content = "0"
-})
-
-local PingLabel = Tabs.Home:AddParagraph({
-    Title = "Ping",
-    Content = "0 ms"
-})
+local FPSLabel = HomeTab:CreateLabel("FPS: Loading...")
+local PingLabel = HomeTab:CreateLabel("Ping: Loading...")
 
 -- Update stats
 task.spawn(function()
     while task.wait(1) do
         pcall(function()
             local fps = math.floor(Workspace:GetRealPhysicsFPS())
-            FPSLabel:SetDesc("FPS: " .. tostring(fps))
+            FPSLabel:Set("FPS: " .. tostring(fps))
             
             local ping = game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValueString()
-            PingLabel:SetDesc("Ping: " .. ping)
+            PingLabel:Set("Ping: " .. ping)
         end)
     end
 end)
@@ -208,99 +212,99 @@ end)
 -- ============================================
 -- FISHING TAB
 -- ============================================
-local FishingSection = Tabs.Fishing:AddSection("Auto Fishing")
+local FishingTab = Window:CreateTab("🎣 Fishing", 4483362458)
+local AutoFishSection = FishingTab:CreateSection("Auto Fishing")
 
-local AutoFishToggle = Tabs.Fishing:AddToggle("AutoFish", {
-    Title = "Auto Fish",
-    Description = "Automatically catch fish",
-    Default = false
+local AutoFishToggle = FishingTab:CreateToggle({
+    Name = "Auto Fish",
+    CurrentValue = false,
+    Flag = "AutoFishToggle",
+    Callback = function(Value)
+        _G.AutoFish = Value
+        if not Value then
+            StopFish()
+        end
+        Rayfield:Notify({
+            Title = "Auto Fish",
+            Content = Value and "Enabled" or "Disabled",
+            Duration = 3,
+            Image = 4483362458
+        })
+    end,
 })
 
-AutoFishToggle:OnChanged(function(state)
-    _G.AutoFish = state
-    if not state then
-        StopFish()
-    end
-    Fluent:Notify({
-        Title = "Auto Fish",
-        Content = state and "Enabled" or "Disabled",
-        Duration = 3
-    })
-end)
-
-local DelaySlider = Tabs.Fishing:AddSlider("InstantDelay", {
-    Title = "Reel Delay",
-    Description = "Delay between reels (seconds)",
-    Default = 0.1,
-    Min = 0,
-    Max = 5,
-    Rounding = 1
+local DelaySlider = FishingTab:CreateSlider({
+    Name = "Reel Delay",
+    Range = {0, 5},
+    Increment = 0.1,
+    Suffix = "seconds",
+    CurrentValue = 0.1,
+    Flag = "ReelDelaySlider",
+    Callback = function(Value)
+        _G.InstantDelay = Value
+    end,
 })
 
-DelaySlider:OnChanged(function(value)
-    _G.InstantDelay = value
-end)
-
-Tabs.Fishing:AddButton({
-    Title = "Equip Rod",
-    Description = "Equip fishing rod from hotbar",
+FishingTab:CreateButton({
+    Name = "Equip Fishing Rod",
     Callback = function()
         equipRod()
-        Fluent:Notify({
+        Rayfield:Notify({
             Title = "Success",
             Content = "Fishing rod equipped",
-            Duration = 2
+            Duration = 2,
+            Image = 4483362458
         })
-    end
+    end,
 })
 
-local SellSection = Tabs.Fishing:AddSection("Auto Sell")
+local SellSection = FishingTab:CreateSection("Auto Sell")
 
-local AutoSellToggle = Tabs.Fishing:AddToggle("AutoSell", {
-    Title = "Auto Sell",
-    Description = "Automatically sell all fish",
-    Default = false
+local AutoSellToggle = FishingTab:CreateToggle({
+    Name = "Auto Sell",
+    CurrentValue = false,
+    Flag = "AutoSellToggle",
+    Callback = function(Value)
+        _G.AutoSell = Value
+        Rayfield:Notify({
+            Title = "Auto Sell",
+            Content = Value and "Enabled" or "Disabled",
+            Duration = 3,
+            Image = 4483362458
+        })
+    end,
 })
 
-AutoSellToggle:OnChanged(function(state)
-    _G.AutoSell = state
-    Fluent:Notify({
-        Title = "Auto Sell",
-        Content = state and "Enabled" or "Disabled",
-        Duration = 3
-    })
-end)
-
-local SellDelaySlider = Tabs.Fishing:AddSlider("SellDelay", {
-    Title = "Sell Delay",
-    Description = "Delay between sells (seconds)",
-    Default = 20,
-    Min = 1,
-    Max = 60,
-    Rounding = 0
+local SellDelaySlider = FishingTab:CreateSlider({
+    Name = "Sell Delay",
+    Range = {1, 60},
+    Increment = 1,
+    Suffix = "seconds",
+    CurrentValue = 20,
+    Flag = "SellDelaySlider",
+    Callback = function(Value)
+        _G.SellDelay = Value
+    end,
 })
 
-SellDelaySlider:OnChanged(function(value)
-    _G.SellDelay = value
-end)
-
-Tabs.Fishing:AddButton({
-    Title = "Sell All Now",
-    Description = "Manually sell all fish",
+FishingTab:CreateButton({
+    Name = "Sell All Now",
     Callback = function()
         SellAll()
-        Fluent:Notify({
+        Rayfield:Notify({
             Title = "Success",
             Content = "All fish sold",
-            Duration = 2
+            Duration = 2,
+            Image = 4483362458
         })
-    end
+    end,
 })
 
 -- ============================================
 -- TELEPORT TAB
 -- ============================================
-local LocationSection = Tabs.Teleport:AddSection("Location Teleport")
+local TeleportTab = Window:CreateTab("📍 Teleport", 4483362458)
+local LocationSection = TeleportTab:CreateSection("Location Teleport")
 
 local locationNames = {}
 for name, _ in pairs(TeleportLocations) do
@@ -310,31 +314,32 @@ table.sort(locationNames)
 
 local selectedLocation = locationNames[1]
 
-local LocationDropdown = Tabs.Teleport:AddDropdown("Location", {
-    Title = "Select Location",
-    Values = locationNames,
-    Default = locationNames[1],
-    Callback = function(value)
-        selectedLocation = value
-    end
+local LocationDropdown = TeleportTab:CreateDropdown({
+    Name = "Select Location",
+    Options = locationNames,
+    CurrentOption = locationNames[1],
+    Flag = "LocationDropdown",
+    Callback = function(Option)
+        selectedLocation = Option
+    end,
 })
 
-Tabs.Teleport:AddButton({
-    Title = "Teleport to Location",
-    Description = "Go to selected location",
+TeleportTab:CreateButton({
+    Name = "Teleport to Location",
     Callback = function()
         if selectedLocation and TeleportLocations[selectedLocation] then
             MoveTo(TeleportLocations[selectedLocation])
-            Fluent:Notify({
+            Rayfield:Notify({
                 Title = "Teleported",
                 Content = "Moved to " .. selectedLocation,
-                Duration = 3
+                Duration = 3,
+                Image = 4483362458
             })
         end
-    end
+    end,
 })
 
-local PlayerSection = Tabs.Teleport:AddSection("Player Teleport")
+local PlayerSection = TeleportTab:CreateSection("Player Teleport")
 
 local function GetPlayerList()
     local list = {}
@@ -349,18 +354,18 @@ end
 local playerList = GetPlayerList()
 local selectedPlayer = playerList[1]
 
-local PlayerDropdown = Tabs.Teleport:AddDropdown("Player", {
-    Title = "Select Player",
-    Values = playerList,
-    Default = playerList[1],
-    Callback = function(value)
-        selectedPlayer = value
-    end
+local PlayerDropdown = TeleportTab:CreateDropdown({
+    Name = "Select Player",
+    Options = playerList,
+    CurrentOption = playerList[1],
+    Flag = "PlayerDropdown",
+    Callback = function(Option)
+        selectedPlayer = Option
+    end,
 })
 
-Tabs.Teleport:AddButton({
-    Title = "Teleport to Player",
-    Description = "Go to selected player",
+TeleportTab:CreateButton({
+    Name = "Teleport to Player",
     Callback = function()
         if selectedPlayer and selectedPlayer ~= "No Players" then
             local targetPlayer = Players:FindFirstChild(selectedPlayer)
@@ -368,67 +373,68 @@ Tabs.Teleport:AddButton({
                 local targetHRP = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
                 if targetHRP then
                     MoveTo(targetHRP.CFrame + Vector3.new(0, 3, 0))
-                    Fluent:Notify({
+                    Rayfield:Notify({
                         Title = "Teleported",
                         Content = "Moved to " .. selectedPlayer,
-                        Duration = 3
+                        Duration = 3,
+                        Image = 4483362458
                     })
                 end
             end
         end
-    end
+    end,
 })
 
-Tabs.Teleport:AddButton({
-    Title = "Refresh Player List",
-    Description = "Update player list",
+TeleportTab:CreateButton({
+    Name = "Refresh Player List",
     Callback = function()
         playerList = GetPlayerList()
-        PlayerDropdown:SetValues(playerList)
-        Fluent:Notify({
+        PlayerDropdown:Refresh(playerList, true)
+        Rayfield:Notify({
             Title = "Refreshed",
             Content = "Player list updated",
-            Duration = 2
+            Duration = 2,
+            Image = 4483362458
         })
-    end
+    end,
 })
 
 -- ============================================
 -- MISC TAB
 -- ============================================
-local OxygenSection = Tabs.Misc:AddSection("Oxygen")
+local MiscTab = Window:CreateTab("⚙️ Misc", 4483362458)
+local OxygenSection = MiscTab:CreateSection("Oxygen")
 
-Tabs.Misc:AddButton({
-    Title = "Bypass Oxygen",
-    Description = "Remove oxygen limit underwater",
+MiscTab:CreateButton({
+    Name = "Bypass Oxygen",
     Callback = function()
         pcall(function()
             net["URE/UpdateOxygen"]:Destroy()
         end)
-        Fluent:Notify({
+        Rayfield:Notify({
             Title = "Success",
             Content = "Oxygen bypass activated!",
-            Duration = 3
+            Duration = 3,
+            Image = 4483362458
         })
-    end
+    end,
 })
 
 -- ============================================
 -- SERVER TAB
 -- ============================================
-local ServerSection = Tabs.Server:AddSection("Server Controls")
+local ServerTab = Window:CreateTab("🖥️ Server", 4483362458)
+local ServerSection = ServerTab:CreateSection("Server Controls")
 
-Tabs.Server:AddButton({
-    Title = "Rejoin Server",
-    Description = "Rejoin current server",
+ServerTab:CreateButton({
+    Name = "Rejoin Server",
     Callback = function()
         TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId)
-    end
+    end,
 })
 
-Tabs.Server:AddButton({
-    Title = "Server Hop",
-    Description = "Join a different server",
+ServerTab:CreateButton({
+    Name = "Server Hop",
     Callback = function()
         local success = pcall(function()
             local module = loadstring(game:HttpGet("https://raw.githubusercontent.com/raw-scriptpastebin/FE/main/Server_Hop_Settings"))()
@@ -436,35 +442,36 @@ Tabs.Server:AddButton({
         end)
         
         if not success then
-            Fluent:Notify({
+            Rayfield:Notify({
                 Title = "Error",
                 Content = "Server hop failed",
-                Duration = 3
+                Duration = 3,
+                Image = 4483362458
             })
         end
-    end
+    end,
 })
 
-local InfoSection = Tabs.Server:AddSection("Server Information")
+local InfoSection = ServerTab:CreateSection("Server Information")
 
-Tabs.Server:AddParagraph({
+ServerTab:CreateParagraph({
     Title = "Job ID",
     Content = game.JobId
 })
 
-Tabs.Server:AddButton({
-    Title = "Copy Job ID",
-    Description = "Copy to clipboard",
+ServerTab:CreateButton({
+    Name = "Copy Job ID",
     Callback = function()
         if setclipboard then
             setclipboard(game.JobId)
-            Fluent:Notify({
+            Rayfield:Notify({
                 Title = "Copied",
                 Content = "Job ID copied to clipboard",
-                Duration = 3
+                Duration = 3,
+                Image = 4483362458
             })
         end
-    end
+    end,
 })
 
 -- ============================================
@@ -487,10 +494,11 @@ end)
 -- ============================================
 -- SUCCESS NOTIFICATION
 -- ============================================
-Fluent:Notify({
+Rayfield:Notify({
     Title = "Reya Hub",
     Content = "Successfully loaded! Happy fishing! 🎣",
-    Duration = 5
+    Duration = 5,
+    Image = 4483362458
 })
 
 print("╔═══════════════════════════════════════╗")
