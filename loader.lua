@@ -59,7 +59,7 @@ end
 
 local GameScripts = {
     -- Fish It
-    [16732694052] = "games/ReyaHUB.lua",
+    [121864768012064] = "games/ReyaHUB.lua",
     
     -- Blox Fruits (example)
     [2753915549] = "games/bloxfruits.lua",
