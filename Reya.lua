@@ -1,7 +1,5 @@
 -- ============================================
--- REYA HUB - NO KEY VERSION (FINAL)
--- Based on Reelz Hub structure
--- WindUI KeySystem disabled globally
+-- REYA HUB - DIRECT LOAD (NO KEY SYSTEM)
 -- ============================================
 
 repeat task.wait() until game:IsLoaded()
@@ -11,31 +9,6 @@ task.wait(2)
 -- LOAD WINDUI
 -- ============================================
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
-
--- ====== FORCE DISABLE KEY SYSTEM (GLOBAL PATCH) ======
--- Some forks/versions require disabling through Config before CreateWindow
-pcall(function()
-    if type(WindUI) == "table" then
-        WindUI.Config = WindUI.Config or {}
-        WindUI.Config.KeySystem = WindUI.Config.KeySystem or {}
-        WindUI.Config.KeySystem.Enabled = false
-
-        -- Some builds reference WindUI.KeySystem directly
-        WindUI.KeySystem = WindUI.KeySystem or {}
-        WindUI.KeySystem.Enabled = false
-
-        -- Ensure CreateWindow default param can't re-enable it
-        local oldCreateWindow = WindUI.CreateWindow
-        if type(oldCreateWindow) == "function" then
-            WindUI.CreateWindow = function(self, config)
-                config = config or {}
-                config.KeySystem = config.KeySystem or {}
-                config.KeySystem.Enabled = false
-                return oldCreateWindow(self, config)
-            end
-        end
-    end
-end)
 
 -- ============================================
 -- SERVICES & VARIABLES
@@ -108,9 +81,7 @@ end
 local function StopFish()
     _G.ActiveFishing = false
     pcall(function()
-        if net:FindFirstChild("RF/CancelFishingInputs") then
-            net:WaitForChild("RF/CancelFishingInputs"):InvokeServer()
-        end
+        net:WaitForChild("RF/CancelFishingInputs"):InvokeServer()
     end)
 end
 
@@ -125,16 +96,12 @@ task.spawn(function()
                 equipRod()
                 task.wait(0.1)
                 
-                if net:FindFirstChild("RF/ChargeFishingRod") then
-                    net:WaitForChild("RF/ChargeFishingRod"):InvokeServer(timestamp)
-                end
+                net:WaitForChild("RF/ChargeFishingRod"):InvokeServer(timestamp)
                 
                 local x = -0.7499996423721313 + (math.random(-500, 500) / 10000000)
                 local y = 1 + (math.random(-500, 500) / 10000000)
                 
-                if net:FindFirstChild("RF/RequestFishingMinigameStarted") then
-                    net:WaitForChild("RF/RequestFishingMinigameStarted"):InvokeServer(x, y)
-                end
+                net:WaitForChild("RF/RequestFishingMinigameStarted"):InvokeServer(x, y)
                 
                 task.wait(0.1)
                 _G.ActiveFishing = false
@@ -144,21 +111,19 @@ task.spawn(function()
 end)
 
 -- Auto reel when fish caught
-if net:FindFirstChild("RE/ReplicateTextEffect") then
-    net["RE/ReplicateTextEffect"].OnClientEvent:Connect(function(data)
-        if _G.AutoFish and _G.ActiveFishing and data then
-            local myHead = Character and Character:FindFirstChild("Head")
-            if myHead and data.Container == myHead then
-                task.spawn(function()
-                    for i = 1, 3 do
-                        task.wait(_G.InstantDelay)
-                        InstantReel()
-                    end
-                end)
-            end
+net["RE/ReplicateTextEffect"].OnClientEvent:Connect(function(data)
+    if _G.AutoFish and _G.ActiveFishing and data then
+        local myHead = Character and Character:FindFirstChild("Head")
+        if myHead and data.Container == myHead then
+            task.spawn(function()
+                for i = 1, 3 do
+                    task.wait(_G.InstantDelay)
+                    InstantReel()
+                end
+            end)
         end
-    end)
-end
+    end
+end)
 
 -- ============================================
 -- AUTO SELL FUNCTION
@@ -196,7 +161,7 @@ local TeleportLocations = {
 }
 
 -- ============================================
--- CREATE WINDOW (NO KEY SYSTEM - METHOD 2)
+-- CREATE WINDOW (NO KEY SYSTEM)
 -- ============================================
 local Window = WindUI:CreateWindow({
     Title = "Reya Hub",
@@ -204,9 +169,7 @@ local Window = WindUI:CreateWindow({
     Author = "Reya",
     Folder = "ReyaHub",
     Size = UDim2.fromOffset(550, 650),
-    KeySystem = {
-        Enabled = false -- Explicitly disable (redundant but safe)
-    },
+    KeySystem = false, -- Completely disabled
     SideBarWidth = 170,
     HasOutline = true,
     Transparent = false,
@@ -262,12 +225,8 @@ task.spawn(function()
             GameTimeParagraph:SetDescription(string.format("%02d:%02d:%02d", Hour, Minute, Second))
             FpsParagraph:SetDescription(tostring(math.floor(Workspace:GetRealPhysicsFPS())))
             
-            local success, ping = pcall(function()
-                return game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValueString()
-            end)
-            if success and ping then
-                PingParagraph:SetDescription(ping)
-            end
+            local ping = game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValueString()
+            PingParagraph:SetDescription(ping)
         end)
     end
 end)
@@ -458,6 +417,19 @@ PlayerSection:Button({
     end
 })
 
+PlayerSection:Button({
+    Name = "Refresh Player List",
+    Description = "Update player list",
+    Callback = function()
+        playerList = GetPlayerList()
+        Window:Notification({
+            Title = "Refreshed",
+            Description = "Player list updated",
+            Duration = 2
+        })
+    end
+})
+
 -- ============================================
 -- MISC TAB
 -- ============================================
@@ -477,15 +449,43 @@ OxygenSection:Button({
     Description = "Remove oxygen limit",
     Callback = function()
         pcall(function()
-            -- we wrap in pcall and check existence to avoid runtime errors
-            if net:FindFirstChild("URE/UpdateOxygen") then
-                net["URE/UpdateOxygen"]:Destroy()
-            end
+            net["URE/UpdateOxygen"]:Destroy()
         end)
         Window:Notification({
             Title = "Success",
             Description = "Oxygen bypass activated!",
             Duration = 3
+        })
+    end
+})
+
+local UtilitySection = MiscTab:Section({
+    Name = "Utilities",
+    Side = "Right"
+})
+
+UtilitySection:Button({
+    Name = "Equip Fishing Rod",
+    Description = "Equip rod from hotbar",
+    Callback = function()
+        equipRod()
+        Window:Notification({
+            Title = "Equipped",
+            Description = "Fishing rod equipped",
+            Duration = 2
+        })
+    end
+})
+
+UtilitySection:Button({
+    Name = "Sell All Fish",
+    Description = "Sell all fish manually",
+    Callback = function()
+        SellAll()
+        Window:Notification({
+            Title = "Sold",
+            Description = "All fish sold",
+            Duration = 2
         })
     end
 })
@@ -573,24 +573,25 @@ TeleportService.TeleportInitFailed:Connect(function(player, teleportResult)
 end)
 
 -- ============================================
--- SUCCESS
+-- SUCCESS NOTIFICATION
 -- ============================================
 Window:Notification({
-    Title = "Reya Hub",
-    Description = "Hub loaded successfully!\nEnjoy fishing! 🎣",
+    Title = "Reya Hub Loaded!",
+    Description = "All features are ready. Happy fishing! 🎣",
     Duration = 5
 })
 
-print("════════════════════════════════════════")
-print("✅ REYA HUB LOADED! (NO KEY VERSION)")
-print("════════════════════════════════════════")
+print("╔═══════════════════════════════════════╗")
+print("✅ REYA HUB LOADED SUCCESSFULLY!")
+print("╠═══════════════════════════════════════╣")
 print("PlaceID:", game.PlaceId)
 print("Player:", LocalPlayer.Name)
+print("╠═══════════════════════════════════════╣")
 print("Features:")
 print("  • Instant Fishing")
 print("  • Auto Sell")
-print("  • Location Teleport (12+ spots)")
+print("  • 12+ Location Teleports")
 print("  • Player Teleport")
 print("  • Oxygen Bypass")
 print("  • Server Controls")
-print("════════════════════════════════════════")
+print("╚═══════════════════════════════════════╝")
