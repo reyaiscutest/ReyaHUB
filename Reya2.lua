@@ -1,16 +1,16 @@
 -- ============================================
--- REYA HUB - FLUENT UI VERSION
+-- REYA HUB - WINDUI VERSION
 -- ============================================
 
 repeat task.wait() until game:IsLoaded()
-task.wait(1)
+task.wait(2)
 
 print("🔄 Loading Reya Hub...")
 
 -- ============================================
--- LOAD FLUENT UI LIBRARY
+-- LOAD WINDUI
 -- ============================================
-local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 -- ============================================
 -- SERVICES & VARIABLES
@@ -20,7 +20,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local TeleportService = game:GetService("TeleportService")
 local RunService = game:GetService("RunService")
-local UIS = game:GetService("UserInputManager")
+local UIS = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
@@ -124,7 +124,6 @@ end)
 -- ============================================
 local lastFishTime = 0
 local hasFishingEffect = false
-local lastCancelTime = 0
 
 -- Monitor fish caught for blatant
 pcall(function()
@@ -169,7 +168,6 @@ task.spawn(function()
                 pcall(function()
                     net:WaitForChild("RF/CancelFishingInputs"):InvokeServer()
                 end)
-                lastCancelTime = tick()
             end
             hasFishingEffect = false
         end
@@ -214,61 +212,84 @@ local TeleportLocations = {
 -- ============================================
 -- CREATE WINDOW
 -- ============================================
-local Window = Fluent:CreateWindow({
+local Window = WindUI:CreateWindow({
     Title = "Reya Hub",
-    SubTitle = "Fish It Automation",
-    TabWidth = 160,
-    Size = UDim2.fromOffset(580, 460),
-    Acrylic = true,
+    Icon = "fish",
+    Author = "Reya",
+    Folder = "ReyaHub",
+    Size = UDim2.fromOffset(550, 650),
+    KeySystem = false,
+    SideBarWidth = 170,
+    HasOutline = true,
+    Transparent = false,
     Theme = "Dark",
-    MinimizeKey = Enum.KeyCode.K
+    ShowUserInfo = true
 })
 
 -- ============================================
--- KEYBIND TO TOGGLE UI (K)
+-- KEYBIND TOGGLE UI (K)
 -- ============================================
+local UIVisible = true
+
+UIS.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.K then
+        UIVisible = not UIVisible
+        Window:SetVisible(UIVisible)
+    end
+end)
+
 print("✅ Press K to show/hide menu!")
 
 -- ============================================
--- TABS
+-- INFO TAB
 -- ============================================
-local Tabs = {
-    Home = Window:AddTab({ Title = "Home", Icon = "home" }),
-    Fishing = Window:AddTab({ Title = "Fishing", Icon = "fish" }),
-    Teleport = Window:AddTab({ Title = "Teleport", Icon = "map-pin" }),
-    Misc = Window:AddTab({ Title = "Misc", Icon = "settings" }),
-    Server = Window:AddTab({ Title = "Server", Icon = "server" })
-}
-
--- ============================================
--- HOME TAB
--- ============================================
-Tabs.Home:AddParagraph({
-    Title = "Welcome to Reya Hub!",
-    Content = "Fish It automation script with multiple features.\n\nVersion: 1.0\nAuthor: Reya\n\n⌨️ Press K to toggle UI"
+local InfoTab = Window:Tab({
+    Name = "Info",
+    Icon = "info",
+    Color = Color3.fromRGB(150, 150, 150)
 })
 
-local StatsSection = Tabs.Home:AddSection("Statistics")
-
-local FPSLabel = Tabs.Home:AddParagraph({
-    Title = "FPS",
-    Content = "0"
+local InfoSection = InfoTab:Section({
+    Name = "Information",
+    Side = "Left"
 })
 
-local PingLabel = Tabs.Home:AddParagraph({
-    Title = "Ping",
-    Content = "0 ms"
+InfoSection:Label({
+    Name = "Reya Hub v1.0",
+    Description = "Fish It Automation Hub\n\n⌨️ Press K to toggle UI"
+})
+
+InfoSection:Divider()
+
+local GameTimeParagraph = InfoSection:Paragraph({
+    Name = "Game Time",
+    Description = "Loading..."
+})
+
+local FpsParagraph = InfoSection:Paragraph({
+    Name = "FPS",
+    Description = "0"
+})
+
+local PingParagraph = InfoSection:Paragraph({
+    Name = "Ping",
+    Description = "0 ms"
 })
 
 -- Update stats
 task.spawn(function()
     while task.wait(1) do
         pcall(function()
-            local fps = math.floor(Workspace:GetRealPhysicsFPS())
-            FPSLabel:SetDesc("FPS: " .. tostring(fps))
+            local GameTime = math.floor(Workspace.DistributedGameTime + 0.5)
+            local Hour = math.floor(GameTime / 3600) % 24
+            local Minute = math.floor(GameTime / 60) % 60
+            local Second = math.floor(GameTime) % 60
+            
+            GameTimeParagraph:SetDescription(string.format("%02d:%02d:%02d", Hour, Minute, Second))
+            FpsParagraph:SetDescription(tostring(math.floor(Workspace:GetRealPhysicsFPS())))
             
             local ping = game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValueString()
-            PingLabel:SetDesc("Ping: " .. ping)
+            PingParagraph:SetDescription(ping)
         end)
     end
 end)
@@ -276,48 +297,53 @@ end)
 -- ============================================
 -- FISHING TAB
 -- ============================================
-local FishingSection = Tabs.Fishing:AddSection("Auto Fishing")
-
-local AutoFishToggle = Tabs.Fishing:AddToggle("AutoFish", {
-    Title = "Auto Fish (Instant)",
-    Description = "Automatically catch fish instantly",
-    Default = false
+local FishingTab = Window:Tab({
+    Name = "Fishing",
+    Icon = "fish",
+    Color = Color3.fromRGB(0, 170, 255)
 })
 
-AutoFishToggle:OnChanged(function(state)
-    _G.AutoFish = state
-    if not state then
-        StopFish()
-    end
-    Fluent:Notify({
-        Title = "Auto Fish",
-        Content = state and "Enabled" or "Disabled",
-        Duration = 3
-    })
-end)
+local AutoFishingSection = FishingTab:Section({
+    Name = "Auto Fishing",
+    Side = "Left"
+})
 
-local DelaySlider = Tabs.Fishing:AddSlider("InstantDelay", {
-    Title = "Reel Delay",
+AutoFishingSection:Dropdown({
+    Name = "Fishing Method",
+    Description = "Choose fishing method",
+    Options = {"Instant"},
+    Default = "Instant",
+    Callback = function(value)
+        _G.FishingMethod = value
+    end
+})
+
+AutoFishingSection:Slider({
+    Name = "Instant Delay",
     Description = "Delay between reels (seconds)",
-    Default = 0.1,
     Min = 0,
     Max = 5,
-    Rounding = 1
+    Default = 0.1,
+    Decimals = 1,
+    Callback = function(value)
+        _G.InstantDelay = value
+    end
 })
 
-DelaySlider:OnChanged(function(value)
-    _G.InstantDelay = value
-end)
-
-Tabs.Fishing:AddButton({
-    Title = "Equip Rod",
-    Description = "Equip fishing rod from hotbar",
-    Callback = function()
-        equipRod()
-        Fluent:Notify({
-            Title = "Success",
-            Content = "Fishing rod equipped",
-            Duration = 2
+AutoFishingSection:Toggle({
+    Name = "Auto Fish",
+    Description = "Automatically catch fish",
+    Default = false,
+    Callback = function(state)
+        _G.AutoFish = state
+        if not state then
+            StopFish()
+        end
+        
+        Window:Notification({
+            Title = state and "Enabled" or "Disabled",
+            Description = "Auto Fishing " .. (state and "activated" or "stopped"),
+            Duration = 3
         })
     end
 })
@@ -325,87 +351,91 @@ Tabs.Fishing:AddButton({
 -- ============================================
 -- BLATANT FISHING SECTION
 -- ============================================
-local BlatantSection = Tabs.Fishing:AddSection("Blatant Fishing")
-
-Tabs.Fishing:AddParagraph({
-    Title = "⚠️ How to Use Blatant",
-    Content = "Works best with high-speed rods:\n\n• Ghostfin Rod: Use 2.2-3.0s delay\n• Element Rod: Use 1.8-2.2s delay\n\nBlatant automatically completes fishing and cancels when stuck."
+local BlatantSection = FishingTab:Section({
+    Name = "Blatant Fishing",
+    Side = "Left"
 })
 
-local BlatantDelaySlider = Tabs.Fishing:AddSlider("BlatantDelay", {
-    Title = "Blatant Delay",
+BlatantSection:Label({
+    Name = "⚠️ Blatant Fishing Guide",
+    Description = "• Ghostfin Rod: 2.2-3.0s delay\n• Element Rod: 1.8-2.2s delay\n\nAuto completes & cancels when stuck"
+})
+
+BlatantSection:Slider({
+    Name = "Blatant Delay",
     Description = "Cancel delay when stuck (seconds)",
-    Default = 2.5,
     Min = 1.5,
     Max = 5,
-    Rounding = 1
-})
-
-BlatantDelaySlider:OnChanged(function(value)
-    _G.BlatantDelay = value
-end)
-
-local BlatantToggle = Tabs.Fishing:AddToggle("Blatant", {
-    Title = "Enable Blatant Fishing",
-    Description = "Advanced fishing with auto-cancel",
-    Default = false
-})
-
-BlatantToggle:OnChanged(function(state)
-    _G.Blatant = state
-    if not state then
-        pcall(function()
-            net:WaitForChild("RF/CancelFishingInputs"):InvokeServer()
-        end)
+    Default = 2.5,
+    Decimals = 1,
+    Callback = function(value)
+        _G.BlatantDelay = value
     end
-    Fluent:Notify({
-        Title = "Blatant Fishing",
-        Content = state and "Enabled - Use 2-3s delay!" or "Disabled",
-        Duration = 3
-    })
-end)
+})
+
+BlatantSection:Toggle({
+    Name = "Enable Blatant",
+    Description = "Advanced fishing with auto-cancel",
+    Default = false,
+    Callback = function(state)
+        _G.Blatant = state
+        if not state then
+            pcall(function()
+                net:WaitForChild("RF/CancelFishingInputs"):InvokeServer()
+            end)
+        end
+        
+        Window:Notification({
+            Title = state and "Enabled" or "Disabled",
+            Description = "Blatant Fishing " .. (state and "activated" or "stopped"),
+            Duration = 3
+        })
+    end
+})
 
 -- ============================================
 -- AUTO SELL SECTION
 -- ============================================
-local SellSection = Tabs.Fishing:AddSection("Auto Sell")
+local AutoSellSection = FishingTab:Section({
+    Name = "Auto Sell",
+    Side = "Right"
+})
 
-local SellDelaySlider = Tabs.Fishing:AddSlider("SellDelay", {
-    Title = "Sell Delay",
+AutoSellSection:Slider({
+    Name = "Sell Delay",
     Description = "Delay between sells (seconds)",
-    Default = 20,
     Min = 1,
     Max = 60,
-    Rounding = 0
+    Default = 20,
+    Decimals = 0,
+    Callback = function(value)
+        _G.SellDelay = value
+    end
 })
 
-SellDelaySlider:OnChanged(function(value)
-    _G.SellDelay = value
-end)
-
-local AutoSellToggle = Tabs.Fishing:AddToggle("AutoSell", {
-    Title = "Auto Sell",
+AutoSellSection:Toggle({
+    Name = "Auto Sell",
     Description = "Automatically sell all fish",
-    Default = false
+    Default = false,
+    Callback = function(state)
+        _G.AutoSell = state
+        
+        Window:Notification({
+            Title = state and "Enabled" or "Disabled",
+            Description = "Auto Sell " .. (state and "activated" or "stopped"),
+            Duration = 3
+        })
+    end
 })
 
-AutoSellToggle:OnChanged(function(state)
-    _G.AutoSell = state
-    Fluent:Notify({
-        Title = "Auto Sell",
-        Content = state and "Enabled" or "Disabled",
-        Duration = 3
-    })
-end)
-
-Tabs.Fishing:AddButton({
-    Title = "Sell All Now",
+AutoSellSection:Button({
+    Name = "Sell All Now",
     Description = "Manually sell all fish",
     Callback = function()
         SellAll()
-        Fluent:Notify({
+        Window:Notification({
             Title = "Success",
-            Content = "All fish sold",
+            Description = "All fish sold",
             Duration = 2
         })
     end
@@ -414,7 +444,16 @@ Tabs.Fishing:AddButton({
 -- ============================================
 -- TELEPORT TAB
 -- ============================================
-local LocationSection = Tabs.Teleport:AddSection("Location Teleport")
+local TeleportTab = Window:Tab({
+    Name = "Teleport",
+    Icon = "map-pin",
+    Color = Color3.fromRGB(255, 150, 0)
+})
+
+local LocationSection = TeleportTab:Section({
+    Name = "Location Teleport",
+    Side = "Left"
+})
 
 local locationNames = {}
 for name, _ in pairs(TeleportLocations) do
@@ -424,24 +463,25 @@ table.sort(locationNames)
 
 local selectedLocation = locationNames[1]
 
-local LocationDropdown = Tabs.Teleport:AddDropdown("Location", {
-    Title = "Select Location",
-    Values = locationNames,
+LocationSection:Dropdown({
+    Name = "Select Location",
+    Description = "Choose teleport destination",
+    Options = locationNames,
     Default = locationNames[1],
     Callback = function(value)
         selectedLocation = value
     end
 })
 
-Tabs.Teleport:AddButton({
-    Title = "Teleport to Location",
+LocationSection:Button({
+    Name = "Teleport",
     Description = "Go to selected location",
     Callback = function()
         if selectedLocation and TeleportLocations[selectedLocation] then
             MoveTo(TeleportLocations[selectedLocation])
-            Fluent:Notify({
+            Window:Notification({
                 Title = "Teleported",
-                Content = "Moved to " .. selectedLocation,
+                Description = "Moved to " .. selectedLocation,
                 Duration = 3
             })
         end
@@ -451,7 +491,10 @@ Tabs.Teleport:AddButton({
 -- ============================================
 -- PLAYER TELEPORT
 -- ============================================
-local PlayerSection = Tabs.Teleport:AddSection("Player Teleport")
+local PlayerSection = TeleportTab:Section({
+    Name = "Player Teleport",
+    Side = "Right"
+})
 
 local function GetPlayerList()
     local list = {}
@@ -460,34 +503,33 @@ local function GetPlayerList()
             table.insert(list, player.Name)
         end
     end
-    return #list > 0 and list or {"No Players"}
+    return list
 end
 
 local playerList = GetPlayerList()
 local selectedPlayer = playerList[1]
 
-local PlayerDropdown = Tabs.Teleport:AddDropdown("Player", {
-    Title = "Select Player",
-    Values = playerList,
-    Default = playerList[1],
+PlayerSection:Dropdown({
+    Name = "Select Player",
+    Options = playerList,
+    Default = playerList[1] or "No Players",
     Callback = function(value)
         selectedPlayer = value
     end
 })
 
-Tabs.Teleport:AddButton({
-    Title = "Teleport to Player",
-    Description = "Go to selected player",
+PlayerSection:Button({
+    Name = "Teleport to Player",
     Callback = function()
-        if selectedPlayer and selectedPlayer ~= "No Players" then
+        if selectedPlayer then
             local targetPlayer = Players:FindFirstChild(selectedPlayer)
             if targetPlayer and targetPlayer.Character then
                 local targetHRP = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
                 if targetHRP then
                     MoveTo(targetHRP.CFrame + Vector3.new(0, 3, 0))
-                    Fluent:Notify({
+                    Window:Notification({
                         Title = "Teleported",
-                        Content = "Moved to " .. selectedPlayer,
+                        Description = "Moved to " .. selectedPlayer,
                         Duration = 3
                     })
                 end
@@ -496,15 +538,14 @@ Tabs.Teleport:AddButton({
     end
 })
 
-Tabs.Teleport:AddButton({
-    Title = "Refresh Player List",
+PlayerSection:Button({
+    Name = "Refresh Player List",
     Description = "Update player list",
     Callback = function()
         playerList = GetPlayerList()
-        PlayerDropdown:SetValues(playerList)
-        Fluent:Notify({
+        Window:Notification({
             Title = "Refreshed",
-            Content = "Player list updated",
+            Description = "Player list updated",
             Duration = 2
         })
     end
@@ -513,52 +554,66 @@ Tabs.Teleport:AddButton({
 -- ============================================
 -- MISC TAB
 -- ============================================
-local OxygenSection = Tabs.Misc:AddSection("Oxygen")
+local MiscTab = Window:Tab({
+    Name = "Misc",
+    Icon = "settings",
+    Color = Color3.fromRGB(200, 200, 200)
+})
 
-Tabs.Misc:AddButton({
-    Title = "Bypass Oxygen",
-    Description = "Remove oxygen limit underwater",
+local OxygenSection = MiscTab:Section({
+    Name = "Oxygen",
+    Side = "Left"
+})
+
+OxygenSection:Button({
+    Name = "Bypass Oxygen",
+    Description = "Remove oxygen limit",
     Callback = function()
         pcall(function()
             net["URE/UpdateOxygen"]:Destroy()
         end)
-        Fluent:Notify({
+        Window:Notification({
             Title = "Success",
-            Content = "Oxygen bypass activated!",
+            Description = "Oxygen bypass activated!",
             Duration = 3
         })
     end
 })
 
-local UtilitySection = Tabs.Misc:AddSection("Utilities")
-
-Tabs.Misc:AddToggle("InfOxygen", {
-    Title = "Infinite Oxygen",
+OxygenSection:Toggle({
+    Name = "Infinite Oxygen",
     Description = "Never run out of oxygen",
-    Default = false
-}):OnChanged(function(state)
-    _G.InfOxygen = state
-    if state then
-        task.spawn(function()
-            while _G.InfOxygen do
-                pcall(function()
-                    net:WaitForChild("URE/UpdateOxygen"):FireServer(-999999)
-                end)
-                task.wait(1)
-            end
+    Default = false,
+    Callback = function(state)
+        _G.InfOxygen = state
+        if state then
+            task.spawn(function()
+                while _G.InfOxygen do
+                    pcall(function()
+                        net:WaitForChild("URE/UpdateOxygen"):FireServer(-999999)
+                    end)
+                    task.wait(1)
+                end
+            end)
+        end
+    end
+})
+
+local UtilitySection = MiscTab:Section({
+    Name = "Utilities",
+    Side = "Left"
+})
+
+UtilitySection:Toggle({
+    Name = "Bypass Radar",
+    Description = "Bypass fishing radar",
+    Default = false,
+    Callback = function(state)
+        pcall(function()
+            net:WaitForChild("RF/UpdateFishingRadar"):InvokeServer(state)
         end)
     end
-end)
-
-Tabs.Misc:AddToggle("BypassRadar", {
-    Title = "Bypass Radar",
-    Description = "Bypass fishing radar detection",
-    Default = false
-}):OnChanged(function(state)
-    pcall(function()
-        net:WaitForChild("RF/UpdateFishingRadar"):InvokeServer(state)
-    end)
-end)
+})
 
 -- Cutscene Controller
 local CutsceneController
@@ -590,183 +645,205 @@ local function EnableCutscenes()
     end
 end
 
-Tabs.Misc:AddToggle("SkipCutscene", {
-    Title = "Auto Skip Cutscene",
-    Description = "Automatically skip all cutscenes",
-    Default = true
-}):OnChanged(function(state)
-    if state then
-        DisableCutscenes()
-    else
-        EnableCutscenes()
+UtilitySection:Toggle({
+    Name = "Auto Skip Cutscene",
+    Description = "Skip all cutscenes",
+    Default = true,
+    Callback = function(state)
+        if state then
+            DisableCutscenes()
+        else
+            EnableCutscenes()
+        end
     end
-end)
+})
 
 -- Initialize cutscene skip
 DisableCutscenes()
 
-local BoostSection = Tabs.Misc:AddSection("Boost Player")
+local BoostSection = MiscTab:Section({
+    Name = "Boost Player",
+    Side = "Right"
+})
 
-Tabs.Misc:AddToggle("DisableNotifs", {
-    Title = "Disable Notifications",
-    Description = "Disable fish/event notifications",
-    Default = true
-}):OnChanged(function(state)
-    _G.DisableNotifs = state
-    if state then
-        pcall(function()
-            for _, event in ipairs({
-                net["RE/ObtainedNewFishNotification"],
-                net["RE/TextNotification"],
-                net["RE/ClaimNotification"]
-            }) do
-                for _, connection in ipairs(getconnections(event.OnClientEvent)) do
-                    connection:Disconnect()
-                end
-            end
-        end)
-    end
-end)
-
-Tabs.Misc:AddToggle("DisableCharEffect", {
-    Title = "Disable Character Effects",
-    Description = "Remove fishing effects on character",
-    Default = false
-}):OnChanged(function(state)
-    _G.DisableCharEffect = state
-    if state then
-        pcall(function()
-            for _, event in ipairs({
-                net["RE/PlayFishingEffect"],
-                net["RE/ReplicateTextEffect"]
-            }) do
-                for _, connection in ipairs(getconnections(event.OnClientEvent)) do
-                    connection:Disconnect()
-                end
-                event.OnClientEvent:Connect(function() end)
-            end
-        end)
-    end
-end)
-
-Tabs.Misc:AddToggle("DeleteFishingEffects", {
-    Title = "Delete Fishing Effects",
-    Description = "Remove fishing effect particles",
-    Default = false
-}):OnChanged(function(state)
-    _G.DelEffects = state
-    if state then
-        task.spawn(function()
-            while _G.DelEffects do
-                local cosmeticFolder = Workspace:FindFirstChild("CosmeticFolder")
-                if cosmeticFolder then
-                    cosmeticFolder:Destroy()
-                end
-                task.wait(60)
-            end
-        end)
-    end
-end)
-
-Tabs.Misc:AddToggle("HideRodOnHand", {
-    Title = "Hide Rod On Hand",
-    Description = "Make rods invisible (you + others)",
-    Default = false
-}):OnChanged(function(state)
-    _G.IrRod = state
-    if state then
-        task.spawn(function()
-            while _G.IrRod do
-                for _, character in ipairs(Workspace.Characters:GetChildren()) do
-                    local equippedTool = character:FindFirstChild("!!!EQUIPPED_TOOL!!!")
-                    if equippedTool then
-                        equippedTool:Destroy()
+BoostSection:Toggle({
+    Name = "Disable Notifications",
+    Description = "Block fish/event notifications",
+    Default = true,
+    Callback = function(state)
+        _G.DisableNotifs = state
+        if state then
+            pcall(function()
+                for _, event in ipairs({
+                    net["RE/ObtainedNewFishNotification"],
+                    net["RE/TextNotification"],
+                    net["RE/ClaimNotification"]
+                }) do
+                    for _, connection in ipairs(getconnections(event.OnClientEvent)) do
+                        connection:Disconnect()
                     end
                 end
-                task.wait(1)
-            end
-        end)
-    end
-end)
-
-local FreezeSection = Tabs.Misc:AddSection("Freeze Player")
-
-Tabs.Misc:AddToggle("FreezePlayer", {
-    Title = "Freeze Player",
-    Description = "Freeze when rod is equipped (no animation)",
-    Default = false
-}):OnChanged(function(state)
-    _G.FrozenPlayer = state
-    
-    local function IsRodEquipped()
-        local equipped = require(ReplicatedStorage.Packages.Replion).Client:WaitReplion("Data"):Get("EquippedId")
-        if not equipped then return false end
-        
-        local PlayerStatsUtility = require(ReplicatedStorage.Shared.PlayerStatsUtility)
-        local ItemUtility = require(ReplicatedStorage.Shared.ItemUtility)
-        local Data = require(ReplicatedStorage.Packages.Replion).Client:WaitReplion("Data")
-        
-        local item = PlayerStatsUtility:GetItemFromInventory(Data, function(p)
-            return p.UUID == equipped
-        end)
-        
-        if not item then return false end
-        local itemData = ItemUtility:GetItemData(item.Id)
-        return itemData and itemData.Data.Type == "Fishing Rods"
-    end
-    
-    local function EquipRod()
-        if not IsRodEquipped() then
-            net:WaitForChild("RE/EquipToolFromHotbar"):FireServer(1)
-            task.wait(0.5)
+            end)
         end
     end
-    
-    local function AnchorCharacter(char, anchored)
-        if char then
-            for _, part in ipairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.Anchored = anchored
+})
+
+BoostSection:Toggle({
+    Name = "Disable Char Effects",
+    Description = "Remove fishing effects",
+    Default = false,
+    Callback = function(state)
+        _G.DisableCharEffect = state
+        if state then
+            pcall(function()
+                for _, event in ipairs({
+                    net["RE/PlayFishingEffect"],
+                    net["RE/ReplicateTextEffect"]
+                }) do
+                    for _, connection in ipairs(getconnections(event.OnClientEvent)) do
+                        connection:Disconnect()
+                    end
+                    event.OnClientEvent:Connect(function() end)
+                end
+            end)
+        end
+    end
+})
+
+BoostSection:Toggle({
+    Name = "Delete Fishing Effects",
+    Description = "Remove effect particles",
+    Default = false,
+    Callback = function(state)
+        _G.DelEffects = state
+        if state then
+            task.spawn(function()
+                while _G.DelEffects do
+                    local cosmeticFolder = Workspace:FindFirstChild("CosmeticFolder")
+                    if cosmeticFolder then
+                        cosmeticFolder:Destroy()
+                    end
+                    task.wait(60)
+                end
+            end)
+        end
+    end
+})
+
+BoostSection:Toggle({
+    Name = "Hide Rod On Hand",
+    Description = "Make rods invisible",
+    Default = false,
+    Callback = function(state)
+        _G.IrRod = state
+        if state then
+            task.spawn(function()
+                while _G.IrRod do
+                    for _, character in ipairs(Workspace.Characters:GetChildren()) do
+                        local equippedTool = character:FindFirstChild("!!!EQUIPPED_TOOL!!!")
+                        if equippedTool then
+                            equippedTool:Destroy()
+                        end
+                    end
+                    task.wait(1)
+                end
+            end)
+        end
+    end
+})
+
+local FreezeSection = MiscTab:Section({
+    Name = "Freeze Player",
+    Side = "Right"
+})
+
+FreezeSection:Toggle({
+    Name = "Freeze Player",
+    Description = "Freeze when rod equipped",
+    Default = false,
+    Callback = function(state)
+        _G.FrozenPlayer = state
+        
+        local function IsRodEquipped()
+            local Replion = require(ReplicatedStorage.Packages.Replion)
+            local Data = Replion.Client:WaitReplion("Data")
+            local equipped = Data:Get("EquippedId")
+            if not equipped then return false end
+            
+            local PlayerStatsUtility = require(ReplicatedStorage.Shared.PlayerStatsUtility)
+            local ItemUtility = require(ReplicatedStorage.Shared.ItemUtility)
+            
+            local item = PlayerStatsUtility:GetItemFromInventory(Data, function(p)
+                return p.UUID == equipped
+            end)
+            
+            if not item then return false end
+            local itemData = ItemUtility:GetItemData(item.Id)
+            return itemData and itemData.Data.Type == "Fishing Rods"
+        end
+        
+        local function EquipRod()
+            if not IsRodEquipped() then
+                net:WaitForChild("RE/EquipToolFromHotbar"):FireServer(1)
+                task.wait(0.5)
+            end
+        end
+        
+        local function AnchorCharacter(char, anchored)
+            if char then
+                for _, part in ipairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.Anchored = anchored
+                    end
                 end
             end
         end
-    end
-    
-    local function ApplyFreeze(char)
-        if _G.FrozenPlayer then
-            EquipRod()
-            if IsRodEquipped() then
-                AnchorCharacter(char, true)
+        
+        local function ApplyFreeze(char)
+            if _G.FrozenPlayer then
+                EquipRod()
+                if IsRodEquipped() then
+                    AnchorCharacter(char, true)
+                end
+            else
+                AnchorCharacter(char, false)
             end
-        else
-            AnchorCharacter(char, false)
         end
+        
+        ApplyFreeze(LocalPlayer.Character)
+        
+        LocalPlayer.CharacterAdded:Connect(function(char)
+            task.wait(1)
+            ApplyFreeze(char)
+        end)
     end
-    
-    ApplyFreeze(LocalPlayer.Character)
-    
-    LocalPlayer.CharacterAdded:Connect(function(char)
-        task.wait(1)
-        ApplyFreeze(char)
-    end)
-end)
+})
 
 -- ============================================
 -- SERVER TAB
 -- ============================================
-local ServerSection = Tabs.Server:AddSection("Server Controls")
+local ServerTab = Window:Tab({
+    Name = "Server",
+    Icon = "server",
+    Color = Color3.fromRGB(100, 100, 255)
+})
 
-Tabs.Server:AddButton({
-    Title = "Rejoin Server",
+local ServerSection = ServerTab:Section({
+    Name = "Server Controls",
+    Side = "Left"
+})
+
+ServerSection:Button({
+    Name = "Rejoin Server",
     Description = "Rejoin current server",
     Callback = function()
         TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId)
     end
 })
 
-Tabs.Server:AddButton({
-    Title = "Server Hop",
-    Description = "Join a different server",
+ServerSection:Button({
+    Name = "Server Hop",
+    Description = "Join different server",
     Callback = function()
         local success = pcall(function()
             local module = loadstring(game:HttpGet("https://raw.githubusercontent.com/raw-scriptpastebin/FE/main/Server_Hop_Settings"))()
@@ -774,31 +851,33 @@ Tabs.Server:AddButton({
         end)
         
         if not success then
-            Fluent:Notify({
+            Window:Notification({
                 Title = "Error",
-                Content = "Server hop failed",
+                Description = "Server hop failed",
                 Duration = 3
             })
         end
     end
 })
 
-local InfoSection = Tabs.Server:AddSection("Server Information")
-
-Tabs.Server:AddParagraph({
-    Title = "Job ID",
-    Content = game.JobId
+local JobIdSection = ServerTab:Section({
+    Name = "Job ID",
+    Side = "Right"
 })
 
-Tabs.Server:AddButton({
-    Title = "Copy Job ID",
-    Description = "Copy to clipboard",
+JobIdSection:Paragraph({
+    Name = "Current Job ID",
+    Description = game.JobId
+})
+
+JobIdSection:Button({
+    Name = "Copy Job ID",
     Callback = function()
         if setclipboard then
             setclipboard(game.JobId)
-            Fluent:Notify({
+            Window:Notification({
                 Title = "Copied",
-                Content = "Job ID copied to clipboard",
+                Description = "Job ID copied to clipboard",
                 Duration = 3
             })
         end
@@ -823,28 +902,27 @@ TeleportService.TeleportInitFailed:Connect(function(player, teleportResult)
 end)
 
 -- ============================================
--- SUCCESS NOTIFICATION
+-- SUCCESS
 -- ============================================
-Fluent:Notify({
+Window:Notification({
     Title = "Reya Hub",
-    Content = "Successfully loaded! Press K to toggle UI\nHappy fishing! 🎣",
+    Description = "Hub loaded successfully!\nPress K to toggle UI\nEnjoy fishing! 🎣",
     Duration = 5
 })
 
 print("╔═══════════════════════════════════════╗")
 print("✅ REYA HUB LOADED!")
 print("╠═══════════════════════════════════════╣")
-print("Player:", LocalPlayer.Name)
 print("PlaceID:", game.PlaceId)
+print("Player:", LocalPlayer.Name)
 print("╠═══════════════════════════════════════╣")
 print("Features:")
 print("  • Instant Fishing")
-print("  • Blatant Fishing (Advanced)")
+print("  • Blatant Fishing")
 print("  • Auto Sell")
-print("  • 12+ Teleport Locations")
+print("  • 12+ Location Teleports")
 print("  • Player Teleport")
-print("  • Oxygen Bypass")
-print("  • Infinite Oxygen")
+print("  • Oxygen Bypass + Infinite")
 print("  • Skip Cutscenes")
 print("  • Disable Notifications")
 print("  • Freeze Player")
