@@ -13,6 +13,8 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
 local VirtualUser = game:GetService("VirtualUser")
+local UserInputService = game:GetService("UserInputService")
+local TeleportService = game:GetService("TeleportService")
 
 local player = Players.LocalPlayer
 
@@ -69,7 +71,6 @@ WindUI:AddTheme({
     }, {
         Rotation = 45,
     }),
-
     Dialog = Color3.fromHex("#1E1B4B"),
     Outline = Color3.fromHex("#7C3AED"),
     Text = Color3.fromHex("#F5F3FF"),
@@ -78,6 +79,7 @@ WindUI:AddTheme({
     Button = Color3.fromHex("#6D28D9"),
     Icon = Color3.fromHex("#A78BFA")
 })
+
 WindUI.TransparencyValue = 0.3
 
 local Window = WindUI:CreateWindow({
@@ -124,7 +126,7 @@ Welcome to Reya HUB.
 Enhanced features for your fishing experience!
 ]],
     Buttons = {
-        { Title = "Start Script",  Variant = "Primary",   Callback = function() confirmed = true end },
+        { Title = "Start Script", Variant = "Primary", Callback = function() confirmed = true end },
     }
 })
 
@@ -143,7 +145,8 @@ _G.TitleEnabled = _G.Overhead:WaitForChild("TitleContainer")
 if player and VirtualUser then
     player.Idled:Connect(function()
         pcall(function()
-            VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new())
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new())
         end)
     end)
 end
@@ -200,11 +203,26 @@ end
 
 Players.LocalPlayer.OnTeleport:Connect(function(state)
     if state == Enum.TeleportState.Failed then
-        _G.TeleportService:Teleport(_G.PlaceId)
+        TeleportService:Teleport(_G.PlaceId)
     end
 end)
 
 task.spawn(AutoReconnect)
+
+if getgenv().AutoRejoinConnection then
+    getgenv().AutoRejoinConnection:Disconnect()
+    getgenv().AutoRejoinConnection = nil
+end
+
+getgenv().AutoRejoinConnection = game:GetService("CoreGui").RobloxPromptGui.promptOverlay.ChildAdded:Connect(function(child)
+    task.wait()
+    if child.Name == "ErrorPrompt" and child:FindFirstChild("MessageArea") and child.MessageArea:FindFirstChild("ErrorFrame") then
+        local TeleportService = game:GetService("TeleportService")
+        local Player = game.Players.LocalPlayer
+        task.wait(2) 
+        TeleportService:Teleport(game.PlaceId, Player)
+    end
+end)
 
 local net = ReplicatedStorage:WaitForChild("Packages")
     :WaitForChild("_Index")
@@ -235,6 +253,16 @@ local AutoFish = AllMenu:Tab({
 local AutoFarmTab = AllMenu:Tab({
     Title = "Farming",
     Icon = "leaf"
+})
+
+local AutoFav = AllMenu:Tab({
+    Title = "Auto Favorite",
+    Icon = "star"
+})
+
+local Trade = AllMenu:Tab({
+    Title = "Trade",
+    Icon = "handshake"
 })
 
 local Player = AllMenu:Tab({
@@ -575,6 +603,168 @@ local gameAnimToggle = AutoFish:Toggle({
 })
 myConfig:Register("DisableGameAnimations", gameAnimToggle)
 
+local GlobalFav = {
+    REObtainedNewFishNotification = ReplicatedStorage.Packages._Index["sleitnick_net@0.2.0"].net["RE/ObtainedNewFishNotification"],
+    REFavoriteItem = ReplicatedStorage.Packages._Index["sleitnick_net@0.2.0"].net["RE/FavoriteItem"],
+    FishIdToName = {},
+    FishNameToId = {},
+    FishNames = {},
+    FishRarity = {},
+    Variants = {},
+    SelectedFishIds = {},
+    SelectedVariants = {},
+    SelectedRarities = {},
+    AutoFavoriteEnabled = false
+}
+
+local TierToRarityName = {
+    [3] = "RARE",
+    [4] = "EPIC",
+    [5] = "LEGENDARY",
+    [6] = "MYTHIC",
+    [7] = "SECRET"
+}
+
+for _, item in ipairs(ReplicatedStorage.Items:GetChildren()) do
+    local ok, data = pcall(require, item)
+    if ok and data.Data and data.Data.Type == "Fish" then
+        local id = data.Data.Id
+        local name = data.Data.Name
+        local tier = data.Data.Tier or 1
+
+        local nameWithId = name .. " [ID:" .. id .. "]"
+
+        GlobalFav.FishIdToName[id] = nameWithId
+        GlobalFav.FishNameToId[nameWithId] = id
+        GlobalFav.FishRarity[id] = tier
+
+        table.insert(GlobalFav.FishNames, nameWithId)
+    end
+end
+
+for _, variantModule in pairs(ReplicatedStorage.Variants:GetChildren()) do
+    local ok, variantData = pcall(require, variantModule)
+    if ok and variantData.Data.Name then
+        local name = variantData.Data.Name
+        GlobalFav.Variants[name] = name
+    end
+end
+
+AutoFav:Section({
+    Title = "Auto Favorite Menu",
+    TextSize = 22,
+    TextXAlignment = "Center",
+})
+
+AutoFav:Toggle({
+    Title = "Enable Auto Favorite",
+    Value = false,
+    Callback = function(state)
+        GlobalFav.AutoFavoriteEnabled = state
+        if state then
+            WindUI:Notify({
+                Title = "Auto Favorite",
+                Content = "Auto Favorite enabled",
+                Duration = 3,
+                Icon = "star"
+            })
+        else
+            WindUI:Notify({
+                Title = "Auto Favorite",
+                Content = "Auto Favorite disabled",
+                Duration = 3,
+                Icon = "star"
+            })
+        end
+    end
+})
+
+AutoFav:Dropdown({
+    Title = "Auto Favorite Fishes",
+    Values = GlobalFav.FishNames,
+    Value = {},
+    Multi = true,
+    AllowNone = true,
+    SearchBarEnabled = true,
+    Callback = function(selectedNames)
+        GlobalFav.SelectedFishIds = {}
+        for _, nameWithId in ipairs(selectedNames) do
+            local id = GlobalFav.FishNameToId[nameWithId]
+            if id then
+                GlobalFav.SelectedFishIds[id] = true
+            end
+        end
+    end
+})
+
+AutoFav:Dropdown({
+    Title = "Auto Favorite Variants",
+    Values = GlobalFav.Variants,
+    Multi = true,
+    AllowNone = true,
+    SearchBarEnabled = true,
+    Callback = function(selectedVariants)
+        GlobalFav.SelectedVariants = {}
+        for _, vName in ipairs(selectedVariants) do
+            for vId, name in pairs(GlobalFav.Variants) do
+                if name == vName then
+                    GlobalFav.SelectedVariants[vId] = true
+                end
+            end
+        end
+    end
+})
+
+local rarityList = {}
+for tier, name in pairs(TierToRarityName) do
+    table.insert(rarityList, name)
+end
+
+AutoFav:Dropdown({
+    Title = "Auto Favorite by Rarity",
+    Values = rarityList,
+    Multi = true,
+    AllowNone = true,
+    SearchBarEnabled = true,
+    Callback = function(selectedRarities)
+        GlobalFav.SelectedRarities = {}
+        for _, rarityName in ipairs(selectedRarities) do
+            for tier, name in pairs(TierToRarityName) do
+                if name == rarityName then
+                    GlobalFav.SelectedRarities[tier] = true
+                end
+            end
+        end
+    end
+})
+
+GlobalFav.REObtainedNewFishNotification.OnClientEvent:Connect(function(itemId, _, data)
+    if not GlobalFav.AutoFavoriteEnabled then return end
+
+    local uuid = data.InventoryItem and data.InventoryItem.UUID
+    if not uuid then return end
+
+    local fishName = GlobalFav.FishIdToName[itemId] or "Unknown"
+    local variantId = data.InventoryItem.Metadata and data.InventoryItem.Metadata.VariantId
+    local tier = GlobalFav.FishRarity[itemId] or 1
+    local rarityName = TierToRarityName[tier] or "Unknown"
+
+    local isFishSelected = GlobalFav.SelectedFishIds[itemId]
+    local isVariantSelected = variantId and GlobalFav.SelectedVariants[variantId]
+    local isRaritySelected = GlobalFav.SelectedRarities[tier]
+
+    local shouldFavorite = false
+    if (isFishSelected or not next(GlobalFav.SelectedFishIds))
+       and (isVariantSelected or not next(GlobalFav.SelectedVariants))
+       and (isRaritySelected or not next(GlobalFav.SelectedRarities)) then
+        shouldFavorite = true
+    end
+
+    if shouldFavorite then
+        GlobalFav.REFavoriteItem:FireServer(uuid)
+    end
+end)
+
 local ijump = false
 
 Player:Toggle({
@@ -628,6 +818,24 @@ local Jp = Player:Slider({
 
 myConfig:Register("JumpPower", Jp)
 
+local defaultMinZoom = player.CameraMinZoomDistance
+local defaultMaxZoom = player.CameraMaxZoomDistance
+
+Player:Toggle({
+    Title = "Unlimited Zoom",
+    Desc = "Unlimited Camera Zoom",
+    Value = false,
+    Callback = function(state)
+        if state then
+            player.CameraMinZoomDistance = 0.5
+            player.CameraMaxZoomDistance = 9999
+        else
+            player.CameraMinZoomDistance = defaultMinZoom
+            player.CameraMaxZoomDistance = defaultMaxZoom
+        end
+    end
+})
+
 Utils:Button({
     Title = "Boost FPS",
     Callback = function()
@@ -636,9 +844,16 @@ Utils:Button({
                 v.Material = Enum.Material.SmoothPlastic
                 v.Reflectance = 0
                 v.CastShadow = false
-            elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
+                v.Transparency = v.Transparency > 0.5 and 1 or v.Transparency
+            elseif v:IsA("Decal") or v:IsA("Texture") then
+                v.Transparency = 1
+            elseif v:IsA("ParticleEmitter") then
                 v.Lifetime = NumberRange.new(0)
-            elseif v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Explosion") then
+            elseif v:IsA("Trail") then
+                v.Lifetime = 0
+            elseif v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Explosion") or v:IsA("ForceField") or v:IsA("Sparkles") then
+                v.Enabled = false
+            elseif v:IsA("PointLight") or v:IsA("SpotLight") or v:IsA("SurfaceLight") then
                 v.Enabled = false
             end
         end
