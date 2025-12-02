@@ -1,11 +1,8 @@
-local Version = "1.6.53"
-local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/download/" ..
-Version .. "/main.lua"))()
+local Library = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 
--- == [ PERBAIKAN: CEK LIBRARY UI ] ==
-if not WindUI then
-    warn("[ReyaHUB] ❌ Gagal memuat WindUI. Periksa koneksi atau URL library!")
-    -- Kirim notifikasi menggunakan fitur bawaan Roblox (jika executor support)
+-- == [ CEK LIBRARY UI ] ==
+if not Library then
+    warn("[ReyaHUB] ❌ Gagal memuat Fluent UI. Periksa executor atau koneksi Anda.")
     game.StarterGui:SetCore("SendNotification", {
         Title = "ReyaHUB Gagal",
         Text = "Gagal memuat UI. Periksa executor atau koneksi Anda.",
@@ -13,7 +10,7 @@ if not WindUI then
     })
     return -- Hentikan eksekusi jika UI library gagal dimuat
 end
--- == [ AKHIR PERBAIKAN ] ==
+-- == [ AKHIR CEK ] ==
 
 -------------------------------------------
 ----- =======[ GLOBAL FUNCTION ]
@@ -175,44 +172,43 @@ end
 ----- =======[ NOTIFY FUNCTION ]
 -------------------------------------------
 
+-- Perubahan pada fungsi notifikasi untuk Fluent
 local function NotifySuccess(title, message, duration)
-    WindUI:Notify({
+    Library:Notify({
         Title = title,
-       
- Content = message,
+        Content = message,
         Duration = duration,
-        Icon = "circle-check",
+        Icon = "check_circle",
         Color = Color3.fromHex("#FF69B4") -- Hot Pink untuk Success
     })
 end
 
 local function NotifyError(title, message, duration)
-    WindUI:Notify({
+    Library:Notify({
         Title = title,
         Content = message,
         Duration = duration,
-        Icon = "ban",
+        Icon = "error", -- Material Icon: error
         Color = Color3.fromHex("#8B008B") -- Dark Magenta untuk Error
     })
 end
 
 local function NotifyInfo(title, message, duration)
-    WindUI:Notify({
+    Library:Notify({
         Title = title,
-   
-       Content = message,
+        Content = message,
         Duration = duration,
-        Icon = "info",
+        Icon = "info", -- Material Icon: info
         Color = Color3.fromHex("#FF1493") -- Deep Pink untuk Info
     })
 end
 
 local function NotifyWarning(title, message, duration)
-    WindUI:Notify({
+    Library:Notify({
         Title = title,
         Content = message,
         Duration = duration,
-        Icon = "triangle-alert",
+        Icon = "warning", -- Material Icon: warning
         Color = Color3.fromHex("#FFC0CB") -- Light Pink untuk Warning
     })
 end
@@ -268,191 +264,190 @@ task.spawn(function()
 end)
 
 
--- == [ PERBAIKAN: HAPUS BARIS PEMBLOKIRAN ] ==
-local confirmed = true -- Diubah: Otomatis True agar script tidak hang
+-- == [ POPUP NON-BLOKIR ] ==
+-- Popup di Fluent tidak perlu blokir. Kita biarkan berjalan tanpa repeat wait.
 
-WindUI:Popup({
+Library:Popup({
     Title = "ReyaHUB",
-    Icon = "crown",
     Content = [[
 Thank you for using ReyaHUB.
 Don't forget Subscribe ReyaHUB Channel!
 ]],
     Buttons = {
-        -- Meskipun kita set confirmed = true di atas, kita biarkan tombol ini tetap ada
-        { Title = "Start Script",  Variant = "Primary",   Callback = function() confirmed = true end },
+        { Title = "Start Script", Callback = function() 
+            NotifyInfo("ReyaHUB", "Script Started!", 3)
+         end },
     }
 })
-
--- Baris 'repeat task.wait() until confirmed' dihapus untuk mencegah script hang
--- == [ AKHIR PERBAIKAN ] ==
 
 
 -------------------------------------------
 ----- =======[ LOAD WINDOW ]
 -------------------------------------------
 
--- Tema Pink Gelap Baru
-WindUI:AddTheme({
-    Name = "Reya Pink", -- Tema baru: Pink Gelap/Deep Pink
-    Accent = WindUI:Gradient({
-        ["0"]   = { Color = Color3.fromHex("#FF1493"), Transparency = 0 },  -- Deep Pink
-        ["50"]  = { Color = Color3.fromHex("#FF69B4"), Transparency = 0 },  -- Hot Pink
-        ["100"] = { Color = Color3.fromHex("#FFC0CB"), Transparency = 0 },  -- Light Pink
-    }, {
-        Rotation = 45,
-    }),
+local PINK_ACCENT = Color3.fromHex("#FF1493") -- Deep Pink
+local PINK_SECONDARY = Color3.fromHex("#FF69B4") -- Hot Pink
+local DARK_BACKGROUND = Color3.fromHex("#0A000A") 
+local DARK_SECTION = Color3.fromHex("#1F001F")
 
-    Dialog = Color3.fromHex("#1F001F"),         -- Latar gelap ungu/hitam
-    Outline = Color3.fromHex("#FF1493"),        -- Deep Pink
-    Text = Color3.fromHex("#FFFFFF"),           -- Teks Putih
-    Placeholder = Color3.fromHex("#C7A3C7"),    -- Placeholder Pink Muda
-    Background = Color3.fromHex("#0A000A"),     -- Latar Belakang Sangat Gelap
-    Button = Color3.fromHex("#8B008B"),         -- Tombol Dark Magenta/Pink Gelap
-    Icon = Color3.fromHex("#FF69B4")            -- Ikon Hot Pink
+-- Tema Pink Gelap Baru untuk Fluent
+Library:AddTheme({
+    Name = "Reya Pink",
+    
+    -- Warna utama
+    AccentColor = PINK_ACCENT, 
+    PrimaryColor = DARK_BACKGROUND,
+    SecondaryColor = DARK_SECTION,
+    TertiaryColor = PINK_SECONDARY, 
+    
+    -- Warna Teks
+    TextColor = Color3.fromHex("#FFFFFF"),
+    PrimaryTextColor = Color3.fromHex("#FFFFFF"),
+    SecondaryTextColor = Color3.fromHex("#C7A3C7"),
+
+    -- Warna Outline
+    OutlineColor = PINK_ACCENT,
+    BackgroundColor = DARK_BACKGROUND
 })
-WindUI.TransparencyValue = 0.3
 
-local Window = WindUI:CreateWindow({
+local Window = Library:CreateWindow({
     Title = "ReyaHUB",
-    Icon = "crown",
-    Author = "Fishit |
- Escobar",
-    Folder = "ReyaHUB",
+    SubTitle = "Fishit | Escobar",
+    TabGravity = Library.ListLayout.Horizontal, -- Align tabs horizontally
     Size = UDim2.fromOffset(600, 400),
-    Transparent = true,
+    Acrylic = true, 
     Theme = "Reya Pink", -- Menggunakan tema Pink Gelap yang baru
-    KeySystem = false,
-    ScrollBarEnabled = true,
-    HideSearchBar = true,
-    NewElements = true,
-    User = {
-        Enabled = true,
-        Anonymous = false,
-        Callback = function() end,
-    }
+    
+    -- Fluent tidak memiliki tombol "OpenButton" yang sangat custom,
+    -- kita hanya mengatur tombol pemicu untuk membuka/menutup UI.
 })
 
-Window:EditOpenButton({
-    Title = "ReyaHUB",
-   
-  Icon = "bolt", -- Ikon baru: bolt
-    CornerRadius = UDim.new(0,30),
-    StrokeThickness = 2,
-    Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromHex("#FF1493")), -- Deep Pink
-        ColorSequenceKeypoint.new(0.5, Color3.fromHex("#FF69B4")), -- Hot Pink
-        ColorSequenceKeypoint.new(1, Color3.fromHex("#FFC0CB")) -- Light Pink
-    }),
-    Draggable = true,
+Window:SetTrigger({
+    KeyCode = Enum.KeyCode.RightControl, -- Gunakan RightControl untuk membuka/menutup UI
 })
 
-local ConfigManager = Window.ConfigManager
-local myConfig = ConfigManager:CreateConfig("ReyaXConfig")
+local ConfigManager = Window:AddConfigManager("ReyaXConfig")
+local myConfig = ConfigManager:CreateConfig()
 
-WindUI:SetNotificationLower(true)
-
-WindUI:Notify({
+-- Fluent tidak memiliki SetNotificationLower, tapi notifikasi biasanya sudah di bawah secara default
+Library:Notify({
     Title = "ReyaHUB",
     Content = "All Features Loaded!",
     Duration = 5,
-    Image = "sparkles" -- Ikon baru: sparkles
+    Icon = "check_circle" -- Ikon Material Design untuk success
 })
 
 -------------------------------------------
------ =======[ ALL TAB 
- ]
+----- =======[ TAB & GROUP (SECTIONS) ]
 -------------------------------------------
 
-local Home = Window:Tab({
+-- Tabs Utama
+local Home = Window:AddTab({
     Title = "Developer Info",
-    Icon = "code" -- Ikon baru: code
+    Icon = "code" -- Material Icon: code
 })
 
-_G.ServerPage = Window:Tab({
+_G.ServerPage = Window:AddTab({
     Title = "Server List",
-    Icon = "satellite" -- Ikon baru: satellite
+    Icon = "satellite_alt" -- Material Icon: satellite_alt
 })
 
-local AllMenu = Window:Section({
+-- Bagian Utama ("All Menu Here") di Fluent menggunakan AddSection
+local AllMenu = Window:AddSection({
     Title = "All Menu Here",
-    Icon = "layers-3", -- Ikon baru: layers-3
-    Opened = false,
+    Icon = "widgets", -- Material Icon: widgets (dashboard)
 })
 
-local AutoFish = AllMenu:Tab({
+-- Tab lama di dalam Section sekarang menjadi Group yang Collapsible
+local AutoFish = AllMenu:AddGroup({
     Title = "Menu Fishing",
-    Icon = "fishing-rod" -- Ikon baru: fishing-rod
+    Icon = "hook", -- Material Icon: hook
+    IsCollapsible = true,
+    DefaultState = Library.GroupState.Closed
 })
 
-local AutoFarmTab = AllMenu:Tab({
+local AutoFarmTab = AllMenu:AddGroup({
     Title = "Menu Farming",
-    Icon = "shovel" -- Ikon baru: shovel
+    Icon = "agriculture", -- Material Icon: agriculture (shovel/farm)
+    IsCollapsible = true,
+    DefaultState = Library.GroupState.Closed
 })
 
-_G.AutoQuestTab = AllMenu:Tab({
+_G.AutoQuestTab = AllMenu:AddGroup({
     Title = "Auto Quest",
-    Icon 
- = "list-checks" -- Ikon baru: list-checks
+    Icon = "rule_checked", -- Material Icon: rule_checked (checklist)
+    IsCollapsible = true,
+    DefaultState = Library.GroupState.Closed
 })
 
-local AutoFav = AllMenu:Tab({
+local AutoFav = AllMenu:AddGroup({
     Title = "Auto Favorite",
-    Icon = "gem" -- Ikon baru: gem
+    Icon = "diamond", -- Material Icon: diamond
+    IsCollapsible = true,
+    DefaultState = Library.GroupState.Closed
 })
 
-local Trade = AllMenu:Tab({
+local Trade = AllMenu:AddGroup({
     Title = "Trade",
-    Icon = "replace" -- Ikon baru: replace
+    Icon = "swap_horiz", -- Material Icon: swap_horiz
+    IsCollapsible = true,
+    DefaultState = Library.GroupState.Closed
 })
 
-_G.DStones = AllMenu:Tab({
+_G.DStones = AllMenu:AddGroup({
     Title = "Double Enchant Stones",
-    Icon = "shield-half" -- Ikon baru: shield-half
+    Icon = "shield", -- Material Icon: shield
+    IsCollapsible = true,
+    DefaultState = Library.GroupState.Closed
 })
 
-local Player = AllMenu:Tab({
+local Player = AllMenu:AddGroup({
     Title = "Player",
-    Icon = "user-gear" -- Ikon baru: user-gear
+    Icon = "manage_accounts", -- Material Icon: manage_accounts
+    IsCollapsible = true,
+    DefaultState = Library.GroupState.Closed
 })
 
-local Utils = AllMenu:Tab({
+local Utils = AllMenu:AddGroup({
     Title = "Utility",
-    Icon = "wrench" -- Ikon baru: wrench
+    Icon = "build", -- Material Icon: build (wrench)
+    IsCollapsible = true,
+    DefaultState = Library.GroupState.Closed
 })
 
-local FishNotif = AllMenu:Tab({
+local FishNotif = AllMenu:AddGroup({
     Title = "Fish Notification",
-    Icon = "bell-dot" -- Ikon baru: bell-dot
+    Icon = "notifications", -- Material Icon: notifications
+    IsCollapsible = true,
+    DefaultState = Library.GroupState.Closed
 })
 
-local SettingsTab = AllMenu:Tab({
-   
-  Title = "Settings",
-    Icon = "settings-2" -- Ikon baru: settings-2
+local SettingsTab = AllMenu:AddGroup({
+    Title = "Settings",
+    Icon = "settings", -- Material Icon: settings
+    IsCollapsible = true,
+    DefaultState = Library.GroupState.Closed
 })
 
 -------------------------------------------
 ----- =======[ HOME TAB ]
 -------------------------------------------
 
-Home:Section({
+Home:AddGroup({
 	Title = "Developer Information",
-	TextSize = 22,
-	TextXAlignment = "Center",
 })
 
-Home:Paragraph({
+Home:AddParagraph({
 	Title = "ReyaHUB",
-	Color = "Grey",
-	Desc = [[
+	Content = [[
 This is a script created by Escobar!.
  YouTube Channel = ReyaHUB
 use the script wisely.
 ]]
 })
 
-Home:Space()
+-- Spacing di Fluent
+Home:AddGroup() 
 
 local InviteAPI = "https://discord.com/api/v10/invites/"
 
@@ -488,19 +483,16 @@ local inviteData = LookupDiscordInvite(inviteCode)
 
 -- Tampilin info Discord di GUI
 if inviteData then
-    Home:Paragraph({
+    Home:AddParagraph({
         Title = string.format("[DISCORD] %s", inviteData.name),
-        Desc = string.format("Members: %d\nOnline: %d", inviteData.members, inviteData.online),
-        Image = inviteData.icon,
-        ImageSize = 50,
-    
-        Locked = true,
+        Content = string.format("Members: %d\nOnline: %d", inviteData.members, inviteData.online),
+        -- Fluent tidak memiliki Image di Paragraph, kita abaikan
     })
 
     -- Tombol Join Discord
-    Home:Button({
+    Home:AddButton({
         Title = "Join Discord",
-        Desc = "Klik untuk salin link invite",
+        Description = "Klik untuk salin link invite",
         Callback = function()
             local discordLink = "https://discord.gg/" .. inviteCode
 
@@ -559,17 +551,15 @@ game.PlaceId ..
 
 _G.ButtonList = {}
 
-_G.ServerListAll = _G.ServerPage:Section({
+_G.ServerListAll = _G.ServerPage:AddGroup({
     Title = "All Server List",
-    TextSize = 22,
-    TextXAlignment = "Center"
+    IsCollapsible = false,
 })
 
-_G.ShowServersButton = _G.ServerListAll:Button({
+_G.ShowServersButton = _G.ServerListAll:AddButton({
     Title = "Show Server List",
-    Desc = "Klik untuk menampilkan daftar server yang tersedia.",
-    Locked = false,
-    Icon = "satellite", -- Ikon Konsisten
+    Description = "Klik untuk menampilkan daftar server yang tersedia.",
+    Icon = "satellite_alt", -- Ikon Konsisten
     Callback = function()
         if _G.ServersShown then return end
         _G.ServersShown = true
@@ -580,12 +570,11 @@ _G.ShowServersButton = _G.ServerListAll:Button({
             _G.ping = server.ping
             _G.id = server.id
 
-            local buttonServer = _G.ServerListAll:Button({
+            local buttonServer = _G.ServerListAll:AddButton({
                 Title = "Server",
-                Desc = "Player: " .. tostring(_G.playerCount) .. "\nPing: 
+                Description = "Player: " .. tostring(_G.playerCount) .. "\nPing: 
  " .. tostring(_G.ping),
-                Locked = false,
-                Icon = "server", -- Ikon Server
+                Icon = "dns", -- Material Icon: dns (Server)
                 Callback = function()
                     game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, _G.id,
                        
@@ -593,18 +582,16 @@ _G.ShowServersButton = _G.ServerListAll:Button({
                 end
             })
 
-            buttonServer:SetTitle("Server")
-            buttonServer:SetDesc("Player: " .. tostring(_G.playerCount) .. "\nPing: " .. tostring(_G.ping))
+            -- Di Fluent, kita tidak perlu SetTitle/SetDesc karena sudah diset saat AddButton
 
             table.insert(_G.ButtonList, buttonServer)
         end
 
         if #_G.ButtonList == 0 then
       
-        _G.ServerListAll:Button({
+        _G.ServerListAll:AddButton({
                 Title = "No Servers Found",
-                Desc = "Tidak ada server yang ditemukan.",
-                Locked = true,
+                Description = "Tidak ada server yang ditemukan.",
                 Callback = function() end
             })
    
@@ -1004,30 +991,27 @@ function _G.ToggleAutoClick(shouldActivate)
     end
 end
 
-_G.FishAdvenc = AutoFish:Section({
+_G.FishAdvenc = AutoFish:AddGroup({
     Title = "Adcenced Settings",
-    TextSize = 22,
-    TextXAlignment = "Center",
-    Opened = false
+    IsCollapsible = true,
+    DefaultState = Library.GroupState.Closed
 })
 
 _G.FishSec 
- = AutoFish:Section({
+ = AutoFish:AddGroup({
     Title = "Auto Fishing Menu",
-    TextSize = 22,
-    TextXAlignment = "Center",
-    Opened = false
+    IsCollapsible = true,
+    DefaultState = Library.GroupState.Closed
 })
 
-_G.DelayFinish = _G.FishAdvenc:Input({
+_G.DelayFinish = _G.FishAdvenc:AddInput({
     Title = "Delay Finish",
-    Desc = [[
+    Description = [[
 High Rod = 1
 Medium Rod = 1.5 - 1.7
 Low Rod = 2 - 3
 ]],
-    Value = _G.FINISH_DELAY,
-    Type = "Input",
+    Default = _G.FINISH_DELAY,
     Placeholder = "Input Delay Finish..",
     Callback = function(input)
         fDelays = tonumber(input)
@@ -1039,13 +1023,12 @@ Low Rod = 2 - 3
     end
 })
 
-myConfig:Register("DelayFinish", _G.DelayFinish)
+myConfig:AddElement(_G.DelayFinish, "DelayFinish")
 
-_G.StuckDelay = _G.FishAdvenc:Input({
+_G.StuckDelay = _G.FishAdvenc:AddInput({
     Title = "Anti Stuck Delay",
-    Desc = "Cooldown for anti stuck Auto Fish",
-    Value = _G.STUCK_TIMEOUT,
-    Type = "Input",
+    Description = "Cooldown for anti stuck Auto Fish",
+    Default = _G.STUCK_TIMEOUT,
     Placeholder = "Input Delay Finish..",
     Callback = function(input)
         stuck = tonumber(input)
@@ -1056,16 +1039,15 @@ _G.StuckDelay = _G.FishAdvenc:Input({
     end
 })
 
-myConfig:Register("StuckDelay", _G.StuckDelay)
+myConfig:AddElement(_G.StuckDelay, "StuckDelay")
 
 
-_G.FishAdvenc:Space()
+_G.FishAdvenc:AddGroup() -- Fluent Space equivalent
 
-_G.CastTimeOut = _G.FishAdvenc:Input({
+_G.CastTimeOut = _G.FishAdvenc:AddInput({
     Title = "Cast Timeout (Auto Recast)",
-    Desc = "Delay before perfect cast is sent. (Lower is Faster)",
-    Value = _G.CastTimeoutValue,
-    Type = "Input",
+    Description = "Delay before perfect cast is sent. (Lower is Faster)",
+    Default = _G.CastTimeoutValue,
     Placeholder = "Input Cast Timeout..",
     Callback = function(input)
         timeout = tonumber(input)
@@ -1076,11 +1058,11 @@ _G.CastTimeOut = _G.FishAdvenc:Input({
     end
 })
 
-myConfig:Register("CastTimeOut", _G.CastTimeOut)
+myConfig:AddElement(_G.CastTimeOut, "CastTimeOut")
 
-_G.FishSec:Toggle({
+_G.FishSec:AddToggle({
     Title = "Auto Fish 5x",
-    Desc = "Automatically casts and reels in the rod. (Fastest Method)",
+    Description = "Automatically casts and reels in the rod. (Fastest Method)",
     Default = false,
     Callback = function(state)
         if state then
@@ -1093,9 +1075,9 @@ _G.FishSec:Toggle({
     end
 })
 
-_G.FishSec:Toggle({
+_G.FishSec:AddToggle({
     Title = "Anti Stuck",
-    Desc = "Automatically recasts after a delay if no fish is caught.",
+    Description = "Automatically recasts after a delay if no fish is caught.",
     Default = true,
     Callback = function(state)
         _G.AntiStuckEnabled = state
@@ -1107,9 +1089,9 @@ _G.FishSec:Toggle({
     end
 })
 
-_G.FishSec:Toggle({
+_G.FishSec:AddToggle({
     Title = "High Quality Fish Only",
-    Desc = "Automatically cancels fishing for common/uncommon/rare fish.",
+    Description = "Automatically cancels fishing for common/uncommon/rare fish.",
     Default = false,
     Callback = function(state)
         _G.AutoFishHighQuality = state
@@ -1126,9 +1108,9 @@ _G.FishSec:Toggle({
     end
 })
 
-_G.FishSec:Toggle({
+_G.FishSec:AddToggle({
     Title = "Auto Fish Legit",
-    Desc = "Automatically clicks the fishing mini-game. (Slower but Safer)",
+    Description = "Automatically clicks the fishing mini-game. (Slower but Safer)",
     Default = false,
     Callback = function(state)
         _G.ToggleAutoClick(state)
@@ -1144,17 +1126,17 @@ _G.FishSec:Toggle({
     end
 })
 
-_G.FishSec:Space()
-_G.SellSetting = _G.FishSec:Section({
+_G.FishSec:AddGroup() -- Fluent Space equivalent
+_G.SellSetting = _G.FishSec:AddGroup({
     Title = "Auto Sell Fish",
-    Opened = false,
+    IsCollapsible = true,
+    DefaultState = Library.GroupState.Closed
 })
 
-_G.Threshold = _G.SellSetting:Input({
+_G.Threshold = _G.SellSetting:AddInput({
     Title = "Sell Threshold",
-    Desc = "Sell all fish when this number of fish are caught.",
-    Value = _G.sellThreshold,
-    Type = "Input",
+    Description = "Sell all fish when this number of fish are caught.",
+    Default = _G.sellThreshold,
     Placeholder = "Input Sell Threshold..",
     Callback = function(input)
         threshold = tonumber(input)
@@ -1165,11 +1147,11 @@ _G.Threshold = _G.SellSetting:Input({
         _G.sellThreshold = threshold
     end
 })
-myConfig:Register("Threshold", _G.Threshold)
+myConfig:AddElement(_G.Threshold, "Threshold")
 
-_G.SellSetting:Toggle({
+_G.SellSetting:AddToggle({
     Title = "Auto Sell",
-    Desc = "Automatically sells all fish after catching the threshold amount.",
+    Description = "Automatically sells all fish after catching the threshold amount.",
     Default = false,
     Callback = function(state)
         _G.sellActive = state
@@ -1181,10 +1163,10 @@ _G.SellSetting:Toggle({
     end
 })
 
-_G.SellSetting:Button({
+_G.SellSetting:AddButton({
     Title = "Sell Now",
-    Desc = "Manually sell all fish in your inventory.",
-    Icon = "store",
+    Description = "Manually sell all fish in your inventory.",
+    Icon = "storefront", -- Material Icon: storefront
     Callback = function()
         _G.TrySellNow()
         NotifyInfo("Sell Now", "All items sold!", 3)
@@ -1195,11 +1177,10 @@ _G.SellSetting:Button({
 ----- =======[ AUTO FARM TAB ]
 -------------------------------------------
 
-_G.AutoFarmSetting = AutoFarmTab:Section({
+_G.AutoFarmSetting = AutoFarmTab:AddGroup({
     Title = "Auto Farm Setting",
-    TextSize = 22,
-    TextXAlignment = "Center",
-    Opened = false,
+    IsCollapsible = true,
+    DefaultState = Library.GroupState.Closed
 })
 
 
@@ -1207,77 +1188,70 @@ _G.AutoFarmSetting = AutoFarmTab:Section({
 ----- =======[ AUTO QUEST TAB ]
 -------------------------------------------
 
-_G.AutoQuestTab:Section({
+_G.AutoQuestTab:AddGroup({
     Title = "Auto Quest Menu",
-    TextSize = 22,
-    TextXAlignment = "Center",
-    Opened = false,
+    IsCollapsible = true,
+    DefaultState = Library.GroupState.Closed
 })
 
 -------------------------------------------
 ----- =======[ AUTO FAVORITE TAB ]
 -------------------------------------------
 
-AutoFav:Section({
+AutoFav:AddGroup({
     Title = "Auto Favorite Menu",
-    TextSize = 22,
-    TextXAlignment = "Center",
-    Opened = false,
+    IsCollapsible = true,
+    DefaultState = Library.GroupState.Closed
 })
 
 -------------------------------------------
 ----- =======[ TRADE TAB ]
 -------------------------------------------
 
-Trade:Section({
+Trade:AddGroup({
     Title = "Trade Menu",
-    TextSize = 22,
-    TextXAlignment = "Center",
-    Opened = false,
+    IsCollapsible = true,
+    DefaultState = Library.GroupState.Closed
 })
 
 -------------------------------------------
 ----- =======[ DOUBLE STONES TAB ]
 -------------------------------------------
 
-_G.DStones:Section({
+_G.DStones:AddGroup({
     Title = "Double Enchant Stones Menu",
-    TextSize = 22,
-    TextXAlignment = "Center",
-    Opened = false,
+    IsCollapsible = true,
+    DefaultState = Library.GroupState.Closed
 })
 
 -------------------------------------------
 ----- =======[ PLAYER TAB ]
 -------------------------------------------
 
-Player:Section({
+Player:AddGroup({
     Title = "Player Menu",
-    TextSize = 22,
-    TextXAlignment = "Center",
-    Opened = false,
+    IsCollapsible = true,
+    DefaultState = Library.GroupState.Closed
 })
 
 -------------------------------------------
 ----- =======[ UTILITY TAB ]
 -------------------------------------------
 
-Utils:Section({
+Utils:AddGroup({
     Title = "Utility Menu",
-    TextSize = 22,
-    TextXAlignment = "Center",
-    Opened = false,
+    IsCollapsible = true,
+    DefaultState = Library.GroupState.Closed
 })
 
 -------------------------------------------
 ----- =======[ FISH NOTIF TAB ]
 -------------------------------------------
 
-FishNotif:Section({
+FishNotif:AddGroup({
     Title = "Fish Notification Menu",
-    TextSize = 22,
-    TextXAlignment = "Center",
-    Opened = false,
+    IsCollapsible = true,
+    DefaultState = Library.GroupState.Closed
 })
 
 
@@ -1285,22 +1259,23 @@ FishNotif:Section({
 ----- =======[ SETTINGS TAB ]
 -------------------------------------------
 
-SettingsTab:Section({
+SettingsTab:AddGroup({
     Title = "UI Settings",
-    TextSize = 22,
-    TextXAlignment = "Center",
-    Opened = false,
+    IsCollapsible = true,
+    DefaultState = Library.GroupState.Closed
 })
 
-SettingsTab:Slider({
+SettingsTab:AddSlider({
     Title = "UI Opacity",
-    Desc = "Adjusts the transparency of the entire user interface.",
-    Value = 30,
+    Description = "Adjusts the transparency of the entire user interface.",
+    Default = 30,
     Min = 0,
     Max = 100,
-    Decimals = 0,
+    Rounding = 0,
     Callback = function(value)
-        WindUI.TransparencyValue = value / 100
+        -- Fluent uses a different approach for transparency, 
+        -- but this logic remains sound for setting a global value if available.
+        Window:SetTransparency(value / 100)
     end,
 })
 
@@ -1342,11 +1317,11 @@ function _G.TampilkanNotifikasiIkan()
 end
 
 -- 🧩 Tambahkan ke tab UI
-SettingsTab:Space()
+SettingsTab:AddGroup() -- Fluent Space equivalent
 
-SettingsTab:Toggle({
+SettingsTab:AddToggle({
     Title = "Hide Notif Fish",
-    Desc = "Turn off new fish pop-up",
+    Description = "Turn off new fish pop-up",
     Default = false,
     Callback = function(state)
         if state then
@@ -1359,13 +1334,13 @@ SettingsTab:Toggle({
     end
 })
 
-SettingsTab:Space()
-SettingsTab:Button({
+SettingsTab:AddGroup() -- Fluent Space equivalent
+SettingsTab:AddButton({
     Title = "Unload Script",
-    Desc = "Hapus semua UI dan fitur dari game.",
-    Icon = "trash-2",
+    Description = "Hapus semua UI dan fitur dari game.",
+    Icon = "delete", -- Material Icon: delete (trash)
     Callback = function()
-        WindUI:Destroy()
+        Window:Destroy() -- Hancurkan jendela Fluent
         NotifyWarning("Unload Script", "Script berhasil di-unload. Silakan rejoin.", 5)
     end,
 })
