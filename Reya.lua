@@ -1,26 +1,51 @@
-local UIsuccess, WindUI = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
-end)
-
-if not UIsuccess or not WindUI then
-    warn("Failed to load WindUI...")
-    return
-end
+-- Reya HUB - Enhanced Stable Version
+-- Improved error handling and UI stability
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local HttpService = game:GetService("HttpService")
 local VirtualUser = game:GetService("VirtualUser")
 local UserInputService = game:GetService("UserInputService")
 local TeleportService = game:GetService("TeleportService")
 
 local player = Players.LocalPlayer
 
+-- Load WindUI with better error handling
+local WindUI
+local loadAttempts = 0
+local maxAttempts = 3
+
+repeat
+    loadAttempts = loadAttempts + 1
+    local success, result = pcall(function()
+        return loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
+    end)
+    
+    if success and result then
+        WindUI = result
+        break
+    else
+        warn("WindUI load attempt " .. loadAttempts .. " failed. Retrying...")
+        task.wait(1)
+    end
+until loadAttempts >= maxAttempts
+
+if not WindUI then
+    -- Fallback: Create simple notification
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Reya HUB Error",
+        Text = "Failed to load WindUI library. Please check your internet connection.",
+        Duration = 10
+    })
+    return
+end
+
+-- Module loader with better error handling
 local Modules = {}
-local function customRequire(module)
+local function safeRequire(module)
     if not module then return nil end
+    
     local success, result = pcall(require, module)
     if success then
         return result
@@ -37,40 +62,44 @@ local function customRequire(module)
     end
 end
 
-local success, errorMessage = pcall(function()
-    local Controllers = ReplicatedStorage:WaitForChild("Controllers", 20)
-    local NetFolder = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild(
-        "sleitnick_net@0.2.0"):WaitForChild("net", 20)
-    local Shared = ReplicatedStorage:WaitForChild("Shared", 20)
+-- Initialize game modules (for specific fishing game)
+local gameModulesLoaded = false
+local success = pcall(function()
+    local Controllers = ReplicatedStorage:WaitForChild("Controllers", 10)
+    local NetFolder = ReplicatedStorage:WaitForChild("Packages", 10)
+        :WaitForChild("_Index", 10)
+        :WaitForChild("sleitnick_net@0.2.0", 10)
+        :WaitForChild("net", 10)
+    local Shared = ReplicatedStorage:WaitForChild("Shared", 10)
     
-    if not (Controllers and NetFolder and Shared) then error("Core game folders not found.") end
-
-    Modules.Replion = customRequire(ReplicatedStorage.Packages.Replion)
-    Modules.ItemUtility = customRequire(Shared.ItemUtility)
-    Modules.FishingController = customRequire(Controllers.FishingController)
-    
-    Modules.EquipToolEvent = NetFolder["RE/EquipToolFromHotbar"]
-    Modules.ChargeRodFunc = NetFolder["RF/ChargeFishingRod"]
-    Modules.StartMinigameFunc = NetFolder["RF/RequestFishingMinigameStarted"]
-    Modules.CompleteFishingEvent = NetFolder["RE/FishingCompleted"]
+    if Controllers and NetFolder and Shared then
+        Modules.Replion = safeRequire(ReplicatedStorage.Packages.Replion)
+        Modules.ItemUtility = safeRequire(Shared.ItemUtility)
+        Modules.FishingController = safeRequire(Controllers.FishingController)
+        
+        Modules.EquipToolEvent = NetFolder["RE/EquipToolFromHotbar"]
+        Modules.ChargeRodFunc = NetFolder["RF/ChargeFishingRod"]
+        Modules.StartMinigameFunc = NetFolder["RF/RequestFishingMinigameStarted"]
+        Modules.CompleteFishingEvent = NetFolder["RE/FishingCompleted"]
+        
+        gameModulesLoaded = true
+    end
 end)
 
 if not success then
-    warn("FATAL ERROR DURING MODULE LOADING: " .. tostring(errorMessage))
-    return
+    warn("Game-specific modules not found. Some features may be disabled.")
 end
 
-task.wait(1)
+task.wait(0.5)
 
+-- Custom Reya Theme
 WindUI:AddTheme({
     Name = "Reya Dark",
     Accent = WindUI:Gradient({
         ["0"]   = { Color = Color3.fromHex("#7C3AED"), Transparency = 0 },
         ["50"]  = { Color = Color3.fromHex("#A78BFA"), Transparency = 0 },
         ["100"] = { Color = Color3.fromHex("#C4B5FD"), Transparency = 0 },
-    }, {
-        Rotation = 45,
-    }),
+    }, { Rotation = 45 }),
     Dialog = Color3.fromHex("#1E1B4B"),
     Outline = Color3.fromHex("#7C3AED"),
     Text = Color3.fromHex("#F5F3FF"),
@@ -82,10 +111,11 @@ WindUI:AddTheme({
 
 WindUI.TransparencyValue = 0.3
 
+-- Create Window
 local Window = WindUI:CreateWindow({
     Title = "Reya HUB",
     Icon = "zap",
-    Author = "Fishit | Reya",
+    Author = "Fishit | Reya - Enhanced",
     Size = UDim2.fromOffset(600, 400),
     Folder = "ReyaHub",
     Transparent = true,
@@ -95,10 +125,15 @@ local Window = WindUI:CreateWindow({
 })
 
 if not Window then
-    warn("Failed to create UI Window.")
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Reya HUB Error",
+        Text = "Failed to create UI Window.",
+        Duration = 10
+    })
     return
 end
 
+-- Customize open button
 Window:EditOpenButton({
     Title = "Reya HUB",
     Icon = "zap",
@@ -117,31 +152,29 @@ local myConfig = ConfigManager:CreateConfig("ReyaHubConfig")
 
 WindUI:SetNotificationLower(true)
 
+-- Welcome popup
 local confirmed = false
 WindUI:Popup({
     Title = "Reya HUB",
     Icon = "zap",
     Content = [[
-Welcome to Reya HUB.
-Enhanced features for your fishing experience!
+Welcome to Reya HUB - Enhanced Version
+Features: Auto Fishing, Player Settings, Utilities & More!
+
+Status: ]] .. (gameModulesLoaded and "✓ Game Detected" or "⚠ Universal Mode") .. [[
 ]],
     Buttons = {
-        { Title = "Start Script", Variant = "Primary", Callback = function() confirmed = true end },
+        { 
+            Title = "Start", 
+            Variant = "Primary", 
+            Callback = function() confirmed = true end 
+        },
     }
 })
 
 repeat task.wait() until confirmed
 
-_G.Characters = workspace:FindFirstChild("Characters"):WaitForChild(player.Name)
-_G.HRP = _G.Characters:WaitForChild("HumanoidRootPart")
-_G.Overhead = _G.HRP:WaitForChild("Overhead")
-_G.Header = _G.Overhead:WaitForChild("Content"):WaitForChild("Header")
-_G.LevelLabel = _G.Overhead:WaitForChild("LevelContainer"):WaitForChild("Label")
-_G.XPBar = player:WaitForChild("PlayerGui"):WaitForChild("XP")
-_G.XPLevel = _G.XPBar:WaitForChild("Frame"):WaitForChild("LevelCount")
-_G.Title = _G.Overhead:WaitForChild("TitleContainer"):WaitForChild("Label")
-_G.TitleEnabled = _G.Overhead:WaitForChild("TitleContainer")
-
+-- Anti-AFK
 if player and VirtualUser then
     player.Idled:Connect(function()
         pcall(function()
@@ -151,88 +184,85 @@ if player and VirtualUser then
     end)
 end
 
+-- Setup character elements (if game supports it)
 task.spawn(function()
-    if _G.XPBar then
-        _G.XPBar.Enabled = true
+    if gameModulesLoaded then
+        pcall(function()
+            _G.Characters = workspace:FindFirstChild("Characters"):WaitForChild(player.Name, 10)
+            _G.HRP = _G.Characters:WaitForChild("HumanoidRootPart", 10)
+            _G.Overhead = _G.HRP:WaitForChild("Overhead", 10)
+            
+            if _G.Overhead then
+                local titleContainer = _G.Overhead:FindFirstChild("TitleContainer")
+                if titleContainer then
+                    titleContainer.Visible = true
+                    local title = titleContainer:FindFirstChild("Label")
+                    if title then
+                        title.TextScaled = false
+                        title.TextSize = 10
+                        title.Text = "Reya HUB"
+                        
+                        -- Add glowing effect
+                        local uiStroke = Instance.new("UIStroke")
+                        uiStroke.Thickness = 2
+                        uiStroke.Color = Color3.fromRGB(124, 58, 237)
+                        uiStroke.Parent = title
+                        
+                        -- Animate colors
+                        task.spawn(function()
+                            local colors = {
+                                Color3.fromRGB(124, 58, 237),
+                                Color3.fromRGB(167, 139, 250),
+                                Color3.fromRGB(196, 181, 253),
+                            }
+                            local i = 1
+                            while task.wait(1.5) do
+                                if not title or not title.Parent then break end
+                                i = (i % #colors) + 1
+                                local tweenInfo = TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+                                TweenService:Create(title, tweenInfo, { TextColor3 = colors[i] }):Play()
+                                TweenService:Create(uiStroke, tweenInfo, { Color = colors[i] }):Play()
+                            end
+                        end)
+                    end
+                end
+            end
+        end)
     end
 end)
 
+-- Auto Reconnect
 task.spawn(function()
-    if _G.TitleEnabled then
-        _G.TitleEnabled.Visible = true
-        _G.Title.TextScaled = false
-        _G.Title.TextSize = 10
-        _G.Title.Text = "Reya HUB"
-
-        local uiStroke = Instance.new("UIStroke")
-        uiStroke.Thickness = 2
-        uiStroke.Color = Color3.fromRGB(124, 58, 237)
-        uiStroke.Parent = _G.Title
-
-        local colors = {
-            Color3.fromRGB(124, 58, 237),
-            Color3.fromRGB(167, 139, 250),
-            Color3.fromRGB(196, 181, 253),
-            Color3.fromRGB(139, 92, 246),
-            Color3.fromRGB(109, 40, 217)
-        }
-
-        local i = 1
-        while task.wait(1.5) do
-            local nextColor = colors[(i % #colors) + 1]
-            local tweenInfo = TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
-            
-            TweenService:Create(_G.Title, tweenInfo, { TextColor3 = nextColor }):Play()
-            TweenService:Create(uiStroke, tweenInfo, { Color = nextColor }):Play()
-            
-            i += 1
+    Players.LocalPlayer.OnTeleport:Connect(function(state)
+        if state == Enum.TeleportState.Failed then
+            TeleportService:Teleport(game.PlaceId)
         end
-    end
-end)
-
-_G.TeleportService = game:GetService("TeleportService")
-_G.PlaceId = game.PlaceId
-
-local function AutoReconnect()
+    end)
+    
+    -- Monitor connection
     while task.wait(5) do
         if not Players.LocalPlayer or not Players.LocalPlayer:IsDescendantOf(game) then
-            _G.TeleportService:Teleport(_G.PlaceId)
+            TeleportService:Teleport(game.PlaceId)
         end
-    end
-end
-
-Players.LocalPlayer.OnTeleport:Connect(function(state)
-    if state == Enum.TeleportState.Failed then
-        TeleportService:Teleport(_G.PlaceId)
     end
 end)
 
-task.spawn(AutoReconnect)
-
+-- Handle disconnect prompts
 if getgenv().AutoRejoinConnection then
     getgenv().AutoRejoinConnection:Disconnect()
-    getgenv().AutoRejoinConnection = nil
 end
 
 getgenv().AutoRejoinConnection = game:GetService("CoreGui").RobloxPromptGui.promptOverlay.ChildAdded:Connect(function(child)
-    task.wait()
-    if child.Name == "ErrorPrompt" and child:FindFirstChild("MessageArea") and child.MessageArea:FindFirstChild("ErrorFrame") then
-        local TeleportService = game:GetService("TeleportService")
-        local Player = game.Players.LocalPlayer
-        task.wait(2) 
-        TeleportService:Teleport(game.PlaceId, Player)
+    task.wait(0.1)
+    if child.Name == "ErrorPrompt" and child:FindFirstChild("MessageArea") then
+        task.wait(2)
+        TeleportService:Teleport(game.PlaceId, player)
     end
 end)
 
-local net = ReplicatedStorage:WaitForChild("Packages")
-    :WaitForChild("_Index")
-    :WaitForChild("sleitnick_net@0.2.0")
-    :WaitForChild("net")
-
-local rodRemote = net:WaitForChild("RF/ChargeFishingRod")
-local miniGameRemote = net:WaitForChild("RF/RequestFishingMinigameStarted")
-local finishRemote = net:WaitForChild("RE/FishingCompleted")
-local Constants = require(ReplicatedStorage:WaitForChild("Shared", 20):WaitForChild("Constants"))
+-- ================================
+-- UI TABS
+-- ================================
 
 local Home = Window:Tab({
     Title = "Home",
@@ -250,21 +280,6 @@ local AutoFish = AllMenu:Tab({
     Icon = "fish"
 })
 
-local AutoFarmTab = AllMenu:Tab({
-    Title = "Farming",
-    Icon = "leaf"
-})
-
-local AutoFav = AllMenu:Tab({
-    Title = "Auto Favorite",
-    Icon = "star"
-})
-
-local Trade = AllMenu:Tab({
-    Title = "Trade",
-    Icon = "handshake"
-})
-
 local Player = AllMenu:Tab({
     Title = "Player",
     Icon = "user"
@@ -280,529 +295,388 @@ local SettingsTab = AllMenu:Tab({
     Icon = "settings"
 })
 
+-- ================================
+-- HOME TAB
+-- ================================
+
 Home:Section({
-	Title = "Reya HUB",
-	TextSize = 22,
-	TextXAlignment = "Center",
-})
-
-Home:Paragraph({
-	Title = "About",
-	Color = "Grey",
-	Desc = [[
-Enhanced fishing script with advanced features.
-Created by Reya Development Team.
-Use wisely and enjoy!
-]]
-})
-
-local featureState = {
-    AutoFish = false,
-    Instant_ChargeDelay = 0.07,
-    Instant_SpamCount = 5,
-    Instant_WorkerCount = 2,
-    Instant_StartDelay = 1.20,
-    Instant_CatchTimeout = 0.01,
-    Instant_CycleDelay = 0.01,
-    Instant_ResetCount = myConfig:Get("Instant_ResetCount") or 10,
-    Instant_ResetPause = myConfig:Get("Instant_ResetPause") or 0.01
-}
-
-local fishingTrove = {}
-local autoFishThread = nil
-local fishCaughtBindable = Instance.new("BindableEvent")
-
-local function equipFishingRod()
-    if Modules.EquipToolEvent then
-        pcall(Modules.EquipToolEvent.FireServer, Modules.EquipToolEvent, 1)
-    end
-end
-
-task.spawn(function()
-    local lastFishName = ""
-    while task.wait(0.25) do
-        local playerGui = player:findFirstChild("PlayerGui")
-        if playerGui then
-            local notificationGui = playerGui:FindFirstChild("Small Notification")
-            if notificationGui and notificationGui.Enabled then
-                local container = notificationGui:FindFirstChild("Display", true) and
-                    notificationGui.Display:FindFirstChild("Container", true)
-                if container then
-                    local itemNameLabel = container:FindFirstChild("ItemName")
-                    if itemNameLabel and itemNameLabel.Text ~= "" and itemNameLabel.Text ~= lastFishName then
-                        lastFishName = itemNameLabel.Text
-                        fishCaughtBindable:Fire()
-                    end
-                end
-            else
-                lastFishName = ""
-            end
-        end
-    end
-end)
-
-local function stopAutoFishProcesses()
-    featureState.AutoFish = false
-    
-    for i, item in ipairs(fishingTrove) do
-        if typeof(item) == "RBXScriptConnection" then
-            item:Disconnect()
-        elseif typeof(item) == "thread" then
-            task.cancel(item)
-        end
-    end
-    fishingTrove = {}
-    
-    pcall(function()
-        if Modules.FishingController and Modules.FishingController.RequestClientStopFishing then
-            Modules.FishingController:RequestClientStopFishing(true)
-        end
-    end)
-end
-
-local function startAutoFishMethod_Instant()
-    if not (Modules.ChargeRodFunc and Modules.StartMinigameFunc and Modules.CompleteFishingEvent and Modules.FishingController) then
-        return
-    end
-
-    featureState.AutoFish = true
-
-    local chargeCount = 0
-    local isCurrentlyResetting = false
-    local counterLock = false
-
-    local function worker()
-        while featureState.AutoFish and player do
-            local currentResetTarget_Worker = featureState.Instant_ResetCount or 10
-
-            if isCurrentlyResetting or chargeCount >= currentResetTarget_Worker then
-                break
-            end
-
-            local success, err = pcall(function()
-                while counterLock do task.wait() end
-                counterLock = true
-
-                if chargeCount < currentResetTarget_Worker then
-                    chargeCount = chargeCount + 1
-                else
-                    counterLock = false
-                    return
-                end
-                counterLock = false
-
-                Modules.ChargeRodFunc:InvokeServer(nil, nil, nil, workspace:GetServerTimeNow())
-                task.wait(featureState.Instant_ChargeDelay)
-                Modules.StartMinigameFunc:InvokeServer(-139, 1, workspace:GetServerTimeNow())
-                task.wait(featureState.Instant_StartDelay)
-
-                if not featureState.AutoFish or isCurrentlyResetting then return end
-
-                for _ = 1, featureState.Instant_SpamCount do
-                    if not featureState.AutoFish or isCurrentlyResetting then break end
-                    Modules.CompleteFishingEvent:FireServer()
-                    task.wait(0.05)
-                end
-
-                if not featureState.AutoFish or isCurrentlyResetting then return end
-
-                local gotFishSignal = false
-                local connection
-                local timeoutThread = task.delay(featureState.Instant_CatchTimeout, function()
-                    if not gotFishSignal and connection and connection.Connected then
-                        connection:Disconnect()
-                    end
-                end)
-
-                connection = fishCaughtBindable.Event:Connect(function()
-                    if gotFishSignal then return end
-                    gotFishSignal = true
-                    task.cancel(timeoutThread)
-                    if connection and connection.Connected then
-                        connection:Disconnect()
-                    end
-                end)
-
-                while not gotFishSignal and task.wait() do
-                    if not featureState.AutoFish or isCurrentlyResetting then break end
-                    if timeoutThread and coroutine.status(timeoutThread) == "dead" then break end
-                end
-
-                if connection and connection.Connected then connection:Disconnect() end
-
-                if Modules.FishingController and Modules.FishingController.RequestClientStopFishing then
-                    pcall(Modules.FishingController.RequestClientStopFishing, Modules.FishingController, true)
-                end
-
-                task.wait()
-            end)
-
-            if not success then
-                warn("Auto Fish Error: ", err)
-                task.wait(1)
-            end
-
-            if not featureState.AutoFish then break end
-            task.wait(featureState.Instant_CycleDelay)
-        end
-    end
-
-    autoFishThread = task.spawn(function()
-        while featureState.AutoFish do
-            local currentResetTarget = featureState.Instant_ResetCount or 10
-            local currentPauseTime = featureState.Instant_ResetPause or 0.01
-
-            chargeCount = 0
-            isCurrentlyResetting = false
-
-            local batchTrove = {}
-
-            for i = 1, featureState.Instant_WorkerCount do
-                if not featureState.AutoFish then break end
-                local workerThread = task.spawn(worker)
-                table.insert(batchTrove, workerThread)
-                table.insert(fishingTrove, workerThread)
-            end
-
-            while featureState.AutoFish and chargeCount < currentResetTarget do
-                task.wait()
-            end
-
-            isCurrentlyResetting = true
-
-            if featureState.AutoFish then
-                for _, thread in ipairs(batchTrove) do
-                    task.cancel(thread)
-                end
-                batchTrove = {}
-
-                task.wait(currentPauseTime)
-            end
-        end
-        stopAutoFishProcesses()
-    end)
-
-    table.insert(fishingTrove, autoFishThread)
-end
-
-local function startOrStopAutoFish(shouldStart)
-    if shouldStart then
-        stopAutoFishProcesses()
-        featureState.AutoFish = true
-        equipFishingRod()
-        task.wait(0.01)
-        startAutoFishMethod_Instant()
-    else
-        stopAutoFishProcesses()
-    end
-end
-
-AutoFish:Section({ Title = "Settings", Opened = true })
-
-local startDelaySlider = AutoFish:Slider({
-    Title = "Delay Recast",
-    Desc = "(Default: 1.20)",
-    Value = { Min = 0.00, Max = 5.0, Default = featureState.Instant_StartDelay },
-    Precise = 2,
-    Step = 0.01,
-    Callback = function(v)
-        featureState.Instant_StartDelay = tonumber(v)
-    end
-})
-myConfig:Register("Instant_StartDelay", startDelaySlider)
-
-local resetCountSlider = AutoFish:Slider({
-    Title = "Spam Finish",
-    Desc = "(Default: 10)",
-    Value = { Min = 5, Max = 50, Default = featureState.Instant_ResetCount },
-    Precise = 0,
-    Step = 1,
-    Callback = function(v)
-        local num = math.floor(tonumber(v) or 10)
-        featureState.Instant_ResetCount = num
-        myConfig:Set("Instant_ResetCount", num)
-    end
-})
-myConfig:Register("Instant_ResetCount", resetCountSlider)
-
-local resetPauseSlider = AutoFish:Slider({
-    Title = "Cooldown Recast",
-    Desc = "(Default: 0.01)",
-    Value = { Min = 0.01, Max = 5, Default = featureState.Instant_ResetPause },
-    Precise = 2,
-    Step = 0.01,
-    Callback = function(v)
-        local num = tonumber(v) or 2.0
-        featureState.Instant_ResetPause = num
-        myConfig:Set("Instant_ResetPause", num)
-    end
-})
-myConfig:Register("Instant_ResetPause", resetPauseSlider)
-
-AutoFish:Section({ Title = "X5 Speed", Opened = true })
-
-local autoFishToggle = AutoFish:Toggle({
-    Title = "AutoFish X5",
-    Desc = "Advanced auto fishing",
-    Value = false,
-    Callback = startOrStopAutoFish
-})
-myConfig:Register("AutoFish", autoFishToggle)
-
-local stopAnimConnections = {}
-local function setGameAnimationsEnabled(state)
-    local character = player.Character or player.CharacterAdded:Wait()
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return end
-
-    for _, conn in pairs(stopAnimConnections) do
-        conn:Disconnect()
-    end
-    stopAnimConnections = {}
-
-    if state then
-        for _, track in ipairs(humanoid:FindFirstChildOfClass("Animator"):GetPlayingAnimationTracks()) do
-            track:Stop(0)
-        end
-
-        local conn = humanoid:FindFirstChildOfClass("Animator").AnimationPlayed:Connect(function(track)
-            task.defer(function()
-                track:Stop(0)
-            end)
-        end)
-        table.insert(stopAnimConnections, conn)
-
-        WindUI:Notify({
-            Title = "Animation Disabled",
-            Content = "All animations disabled",
-            Duration = 4,
-            Icon = "pause-circle"
-        })
-    else
-        for _, conn in pairs(stopAnimConnections) do
-            conn:Disconnect()
-        end
-        stopAnimConnections = {}
-
-        WindUI:Notify({
-            Title = "Animation Enabled",
-            Content = "Animations reactivated",
-            Duration = 4,
-            Icon = "play-circle"
-        })
-    end
-end
-
-local gameAnimToggle = AutoFish:Toggle({
-    Title = "No Animation",
-    Desc = "Stop all game animations",
-    Value = false,
-    Callback = function(v)
-        setGameAnimationsEnabled(v)
-    end
-})
-myConfig:Register("DisableGameAnimations", gameAnimToggle)
-
-local GlobalFav = {
-    REObtainedNewFishNotification = ReplicatedStorage.Packages._Index["sleitnick_net@0.2.0"].net["RE/ObtainedNewFishNotification"],
-    REFavoriteItem = ReplicatedStorage.Packages._Index["sleitnick_net@0.2.0"].net["RE/FavoriteItem"],
-    FishIdToName = {},
-    FishNameToId = {},
-    FishNames = {},
-    FishRarity = {},
-    Variants = {},
-    SelectedFishIds = {},
-    SelectedVariants = {},
-    SelectedRarities = {},
-    AutoFavoriteEnabled = false
-}
-
-local TierToRarityName = {
-    [3] = "RARE",
-    [4] = "EPIC",
-    [5] = "LEGENDARY",
-    [6] = "MYTHIC",
-    [7] = "SECRET"
-}
-
-for _, item in ipairs(ReplicatedStorage.Items:GetChildren()) do
-    local ok, data = pcall(require, item)
-    if ok and data.Data and data.Data.Type == "Fish" then
-        local id = data.Data.Id
-        local name = data.Data.Name
-        local tier = data.Data.Tier or 1
-
-        local nameWithId = name .. " [ID:" .. id .. "]"
-
-        GlobalFav.FishIdToName[id] = nameWithId
-        GlobalFav.FishNameToId[nameWithId] = id
-        GlobalFav.FishRarity[id] = tier
-
-        table.insert(GlobalFav.FishNames, nameWithId)
-    end
-end
-
-for _, variantModule in pairs(ReplicatedStorage.Variants:GetChildren()) do
-    local ok, variantData = pcall(require, variantModule)
-    if ok and variantData.Data.Name then
-        local name = variantData.Data.Name
-        GlobalFav.Variants[name] = name
-    end
-end
-
-AutoFav:Section({
-    Title = "Auto Favorite Menu",
+    Title = "Reya HUB",
     TextSize = 22,
     TextXAlignment = "Center",
 })
 
-AutoFav:Toggle({
-    Title = "Enable Auto Favorite",
-    Value = false,
-    Callback = function(state)
-        GlobalFav.AutoFavoriteEnabled = state
+Home:Paragraph({
+    Title = "About",
+    Color = "Grey",
+    Desc = [[
+Enhanced Universal Script Hub
+Version: 2.0 Stable
+
+Features:
+• Auto Fishing (Game-Specific)
+• Player Movement Enhancements
+• FPS Booster
+• Auto Reconnect
+• And More!
+
+Created by Reya Development Team
+]]
+})
+
+Home:Paragraph({
+    Title = "Status",
+    Color = gameModulesLoaded and "Green" or "Yellow",
+    Desc = gameModulesLoaded and 
+        "✓ Game modules loaded successfully\n✓ All features available" or
+        "⚠ Running in Universal Mode\n⚠ Some features may be limited"
+})
+
+-- ================================
+-- AUTO FISHING TAB
+-- ================================
+
+if gameModulesLoaded then
+    local featureState = {
+        AutoFish = false,
+        Instant_ChargeDelay = 0.07,
+        Instant_SpamCount = 5,
+        Instant_WorkerCount = 2,
+        Instant_StartDelay = 1.20,
+        Instant_CatchTimeout = 0.01,
+        Instant_CycleDelay = 0.01,
+        Instant_ResetCount = 10,
+        Instant_ResetPause = 0.01
+    }
+    
+    local fishingTrove = {}
+    local autoFishThread = nil
+    local fishCaughtBindable = Instance.new("BindableEvent")
+    
+    local function equipFishingRod()
+        if Modules.EquipToolEvent then
+            pcall(Modules.EquipToolEvent.FireServer, Modules.EquipToolEvent, 1)
+        end
+    end
+    
+    -- Fish caught detector
+    task.spawn(function()
+        local lastFishName = ""
+        while task.wait(0.25) do
+            local playerGui = player:FindFirstChild("PlayerGui")
+            if playerGui then
+                local notificationGui = playerGui:FindFirstChild("Small Notification")
+                if notificationGui and notificationGui.Enabled then
+                    local display = notificationGui:FindFirstChild("Display", true)
+                    if display then
+                        local container = display:FindFirstChild("Container", true)
+                        if container then
+                            local itemNameLabel = container:FindFirstChild("ItemName")
+                            if itemNameLabel and itemNameLabel.Text ~= "" and itemNameLabel.Text ~= lastFishName then
+                                lastFishName = itemNameLabel.Text
+                                fishCaughtBindable:Fire()
+                            end
+                        end
+                    end
+                else
+                    lastFishName = ""
+                end
+            end
+        end
+    end)
+    
+    local function stopAutoFishProcesses()
+        featureState.AutoFish = false
+        
+        for _, item in ipairs(fishingTrove) do
+            if typeof(item) == "RBXScriptConnection" then
+                item:Disconnect()
+            elseif typeof(item) == "thread" then
+                task.cancel(item)
+            end
+        end
+        fishingTrove = {}
+        
+        pcall(function()
+            if Modules.FishingController and Modules.FishingController.RequestClientStopFishing then
+                Modules.FishingController:RequestClientStopFishing(true)
+            end
+        end)
+    end
+    
+    local function startAutoFishMethod()
+        if not (Modules.ChargeRodFunc and Modules.StartMinigameFunc and Modules.CompleteFishingEvent) then
+            return
+        end
+        
+        featureState.AutoFish = true
+        
+        local chargeCount = 0
+        local isResetting = false
+        local counterLock = false
+        
+        local function worker()
+            while featureState.AutoFish and player do
+                if isResetting or chargeCount >= featureState.Instant_ResetCount then
+                    break
+                end
+                
+                local success = pcall(function()
+                    while counterLock do task.wait() end
+                    counterLock = true
+                    
+                    if chargeCount < featureState.Instant_ResetCount then
+                        chargeCount = chargeCount + 1
+                    else
+                        counterLock = false
+                        return
+                    end
+                    counterLock = false
+                    
+                    Modules.ChargeRodFunc:InvokeServer(nil, nil, nil, workspace:GetServerTimeNow())
+                    task.wait(featureState.Instant_ChargeDelay)
+                    
+                    Modules.StartMinigameFunc:InvokeServer(-139, 1, workspace:GetServerTimeNow())
+                    task.wait(featureState.Instant_StartDelay)
+                    
+                    if not featureState.AutoFish or isResetting then return end
+                    
+                    for _ = 1, featureState.Instant_SpamCount do
+                        if not featureState.AutoFish or isResetting then break end
+                        Modules.CompleteFishingEvent:FireServer()
+                        task.wait(0.05)
+                    end
+                    
+                    if not featureState.AutoFish or isResetting then return end
+                    
+                    local gotFish = false
+                    local connection
+                    local timeout = task.delay(featureState.Instant_CatchTimeout, function()
+                        if not gotFish and connection then
+                            connection:Disconnect()
+                        end
+                    end)
+                    
+                    connection = fishCaughtBindable.Event:Connect(function()
+                        if gotFish then return end
+                        gotFish = true
+                        task.cancel(timeout)
+                        if connection then connection:Disconnect() end
+                    end)
+                    
+                    while not gotFish and task.wait() do
+                        if not featureState.AutoFish or isResetting then break end
+                        if timeout and coroutine.status(timeout) == "dead" then break end
+                    end
+                    
+                    if connection then connection:Disconnect() end
+                    
+                    if Modules.FishingController then
+                        pcall(Modules.FishingController.RequestClientStopFishing, Modules.FishingController, true)
+                    end
+                    
+                    task.wait()
+                end)
+                
+                if not success then task.wait(1) end
+                if not featureState.AutoFish then break end
+                task.wait(featureState.Instant_CycleDelay)
+            end
+        end
+        
+        autoFishThread = task.spawn(function()
+            while featureState.AutoFish do
+                chargeCount = 0
+                isResetting = false
+                
+                local batchTrove = {}
+                
+                for i = 1, featureState.Instant_WorkerCount do
+                    if not featureState.AutoFish then break end
+                    local workerThread = task.spawn(worker)
+                    table.insert(batchTrove, workerThread)
+                    table.insert(fishingTrove, workerThread)
+                end
+                
+                while featureState.AutoFish and chargeCount < featureState.Instant_ResetCount do
+                    task.wait()
+                end
+                
+                isResetting = true
+                
+                if featureState.AutoFish then
+                    for _, thread in ipairs(batchTrove) do
+                        task.cancel(thread)
+                    end
+                    batchTrove = {}
+                    task.wait(featureState.Instant_ResetPause)
+                end
+            end
+            stopAutoFishProcesses()
+        end)
+        
+        table.insert(fishingTrove, autoFishThread)
+    end
+    
+    local function startOrStopAutoFish(shouldStart)
+        if shouldStart then
+            stopAutoFishProcesses()
+            featureState.AutoFish = true
+            equipFishingRod()
+            task.wait(0.1)
+            startAutoFishMethod()
+        else
+            stopAutoFishProcesses()
+        end
+    end
+    
+    AutoFish:Section({ Title = "Auto Fishing Settings", Opened = true })
+    
+    local startDelaySlider = AutoFish:Slider({
+        Title = "Recast Delay",
+        Desc = "Delay before recasting (Default: 1.20s)",
+        Value = { Min = 0.00, Max = 5.0, Default = featureState.Instant_StartDelay },
+        Precise = 2,
+        Step = 0.01,
+        Callback = function(v)
+            featureState.Instant_StartDelay = tonumber(v)
+        end
+    })
+    myConfig:Register("Instant_StartDelay", startDelaySlider)
+    
+    local resetCountSlider = AutoFish:Slider({
+        Title = "Spam Finish Count",
+        Desc = "Number of finish attempts (Default: 10)",
+        Value = { Min = 5, Max = 50, Default = featureState.Instant_ResetCount },
+        Precise = 0,
+        Step = 1,
+        Callback = function(v)
+            featureState.Instant_ResetCount = math.floor(tonumber(v) or 10)
+        end
+    })
+    myConfig:Register("Instant_ResetCount", resetCountSlider)
+    
+    local resetPauseSlider = AutoFish:Slider({
+        Title = "Cooldown Between Batches",
+        Desc = "Pause time between cycles (Default: 0.01s)",
+        Value = { Min = 0.01, Max = 5, Default = featureState.Instant_ResetPause },
+        Precise = 2,
+        Step = 0.01,
+        Callback = function(v)
+            featureState.Instant_ResetPause = tonumber(v) or 0.01
+        end
+    })
+    myConfig:Register("Instant_ResetPause", resetPauseSlider)
+    
+    AutoFish:Section({ Title = "Controls", Opened = true })
+    
+    local autoFishToggle = AutoFish:Toggle({
+        Title = "Enable Auto Fish",
+        Desc = "Automatically fish with 5x speed",
+        Value = false,
+        Callback = startOrStopAutoFish
+    })
+    myConfig:Register("AutoFish", autoFishToggle)
+    
+    local stopAnimConnections = {}
+    local function setGameAnimationsEnabled(state)
+        local character = player.Character or player.CharacterAdded:Wait()
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if not humanoid then return end
+        
+        for _, conn in pairs(stopAnimConnections) do
+            conn:Disconnect()
+        end
+        stopAnimConnections = {}
+        
         if state then
+            local animator = humanoid:FindFirstChildOfClass("Animator")
+            if animator then
+                for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+                    track:Stop(0)
+                end
+                
+                local conn = animator.AnimationPlayed:Connect(function(track)
+                    task.defer(function() track:Stop(0) end)
+                end)
+                table.insert(stopAnimConnections, conn)
+            end
+            
             WindUI:Notify({
-                Title = "Auto Favorite",
-                Content = "Auto Favorite enabled",
+                Title = "Animations Disabled",
+                Content = "All animations stopped",
                 Duration = 3,
-                Icon = "star"
+                Icon = "pause-circle"
             })
         else
             WindUI:Notify({
-                Title = "Auto Favorite",
-                Content = "Auto Favorite disabled",
+                Title = "Animations Enabled",
+                Content = "Animations restored",
                 Duration = 3,
-                Icon = "star"
+                Icon = "play-circle"
             })
         end
     end
-})
-
-AutoFav:Dropdown({
-    Title = "Auto Favorite Fishes",
-    Values = GlobalFav.FishNames,
-    Value = {},
-    Multi = true,
-    AllowNone = true,
-    SearchBarEnabled = true,
-    Callback = function(selectedNames)
-        GlobalFav.SelectedFishIds = {}
-        for _, nameWithId in ipairs(selectedNames) do
-            local id = GlobalFav.FishNameToId[nameWithId]
-            if id then
-                GlobalFav.SelectedFishIds[id] = true
-            end
-        end
-    end
-})
-
-AutoFav:Dropdown({
-    Title = "Auto Favorite Variants",
-    Values = GlobalFav.Variants,
-    Multi = true,
-    AllowNone = true,
-    SearchBarEnabled = true,
-    Callback = function(selectedVariants)
-        GlobalFav.SelectedVariants = {}
-        for _, vName in ipairs(selectedVariants) do
-            for vId, name in pairs(GlobalFav.Variants) do
-                if name == vName then
-                    GlobalFav.SelectedVariants[vId] = true
-                end
-            end
-        end
-    end
-})
-
-local rarityList = {}
-for tier, name in pairs(TierToRarityName) do
-    table.insert(rarityList, name)
+    
+    local gameAnimToggle = AutoFish:Toggle({
+        Title = "Disable Animations",
+        Desc = "Stop fishing animations for better performance",
+        Value = false,
+        Callback = setGameAnimationsEnabled
+    })
+    myConfig:Register("DisableGameAnimations", gameAnimToggle)
+else
+    AutoFish:Paragraph({
+        Title = "Not Available",
+        Color = "Yellow",
+        Desc = "Auto Fishing is only available in supported games. Current game is not supported."
+    })
 end
 
-AutoFav:Dropdown({
-    Title = "Auto Favorite by Rarity",
-    Values = rarityList,
-    Multi = true,
-    AllowNone = true,
-    SearchBarEnabled = true,
-    Callback = function(selectedRarities)
-        GlobalFav.SelectedRarities = {}
-        for _, rarityName in ipairs(selectedRarities) do
-            for tier, name in pairs(TierToRarityName) do
-                if name == rarityName then
-                    GlobalFav.SelectedRarities[tier] = true
-                end
-            end
-        end
-    end
-})
+-- ================================
+-- PLAYER TAB
+-- ================================
 
-GlobalFav.REObtainedNewFishNotification.OnClientEvent:Connect(function(itemId, _, data)
-    if not GlobalFav.AutoFavoriteEnabled then return end
-
-    local uuid = data.InventoryItem and data.InventoryItem.UUID
-    if not uuid then return end
-
-    local fishName = GlobalFav.FishIdToName[itemId] or "Unknown"
-    local variantId = data.InventoryItem.Metadata and data.InventoryItem.Metadata.VariantId
-    local tier = GlobalFav.FishRarity[itemId] or 1
-    local rarityName = TierToRarityName[tier] or "Unknown"
-
-    local isFishSelected = GlobalFav.SelectedFishIds[itemId]
-    local isVariantSelected = variantId and GlobalFav.SelectedVariants[variantId]
-    local isRaritySelected = GlobalFav.SelectedRarities[tier]
-
-    local shouldFavorite = false
-    if (isFishSelected or not next(GlobalFav.SelectedFishIds))
-       and (isVariantSelected or not next(GlobalFav.SelectedVariants))
-       and (isRaritySelected or not next(GlobalFav.SelectedRarities)) then
-        shouldFavorite = true
-    end
-
-    if shouldFavorite then
-        GlobalFav.REFavoriteItem:FireServer(uuid)
-    end
-end)
+Player:Section({ Title = "Movement", Opened = true })
 
 local ijump = false
 
 Player:Toggle({
-    Title = "Infinity Jump",
+    Title = "Infinite Jump",
+    Desc = "Jump indefinitely",
+    Value = false,
     Callback = function(val)
         ijump = val
     end,
 })
 
-game:GetService("UserInputService").JumpRequest:Connect(function()
-    if ijump and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
-        player.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
+UserInputService.JumpRequest:Connect(function()
+    if ijump and player.Character then
+        local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid:ChangeState("Jumping")
+        end
     end
 end)
 
 local Speed = Player:Slider({
-    Title = "WalkSpeed",
-    Value = {
-        Min = 16,
-        Max = 200,
-        Default = 20
-    },
+    Title = "Walk Speed",
+    Desc = "Adjust your walking speed",
+    Value = { Min = 16, Max = 200, Default = 20 },
     Step = 1,
     Callback = function(val)
-        local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-        if hum then hum.WalkSpeed = val end
+        local char = player.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then hum.WalkSpeed = val end
+        end
     end,
 })
-
 myConfig:Register("PlayerSpeed", Speed)
 
 local Jp = Player:Slider({
     Title = "Jump Power",
-    Value = {
-        Min = 50,
-        Max = 500,
-        Default = 35
-    },
+    Desc = "Adjust your jump height",
+    Value = { Min = 50, Max = 500, Default = 50 },
     Step = 10,
     Callback = function(val)
         local char = player.Character
@@ -815,15 +689,16 @@ local Jp = Player:Slider({
         end
     end,
 })
-
 myConfig:Register("JumpPower", Jp)
+
+Player:Section({ Title = "Camera", Opened = true })
 
 local defaultMinZoom = player.CameraMinZoomDistance
 local defaultMaxZoom = player.CameraMaxZoomDistance
 
 Player:Toggle({
     Title = "Unlimited Zoom",
-    Desc = "Unlimited Camera Zoom",
+    Desc = "Remove camera zoom limits",
     Value = false,
     Callback = function(state)
         if state then
@@ -836,28 +711,35 @@ Player:Toggle({
     end
 })
 
+-- ================================
+-- UTILITY TAB
+-- ================================
+
+Utils:Section({ Title = "Performance", Opened = true })
+
 Utils:Button({
     Title = "Boost FPS",
+    Desc = "Optimize graphics for better performance",
+    Icon = "zap",
     Callback = function()
         for _, v in pairs(game:GetDescendants()) do
             if v:IsA("BasePart") then
                 v.Material = Enum.Material.SmoothPlastic
                 v.Reflectance = 0
                 v.CastShadow = false
-                v.Transparency = v.Transparency > 0.5 and 1 or v.Transparency
             elseif v:IsA("Decal") or v:IsA("Texture") then
                 v.Transparency = 1
             elseif v:IsA("ParticleEmitter") then
                 v.Lifetime = NumberRange.new(0)
             elseif v:IsA("Trail") then
                 v.Lifetime = 0
-            elseif v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Explosion") or v:IsA("ForceField") or v:IsA("Sparkles") then
+            elseif v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Explosion") then
                 v.Enabled = false
             elseif v:IsA("PointLight") or v:IsA("SpotLight") or v:IsA("SurfaceLight") then
                 v.Enabled = false
             end
         end
-
+        
         local Lighting = game:GetService("Lighting")
         Lighting.GlobalShadows = false
         Lighting.FogEnd = 9e9
@@ -865,41 +747,53 @@ Utils:Button({
         settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
         
         WindUI:Notify({
-            Title = "FPS Boost",
-            Content = "Graphics optimized",
-            Duration = 3,
+            Title = "FPS Boost Applied",
+            Content = "Graphics optimized successfully",
+            Duration = 4,
             Icon = "zap"
         })
     end
 })
 
-_G.Keybind = SettingsTab:Keybind({
-    Title = "Toggle Key",
-    Desc = "Key to open/close UI",
+Utils:Section({ Title = "Other", Opened = true })
+
+Utils:Button({
+    Title = "Rejoin Server",
+    Desc = "Reconnect to current server",
+    Icon = "refresh-cw",
+    Callback = function()
+        TeleportService:Teleport(game.PlaceId, player)
+    end
+})
+
+-- ================================
+-- SETTINGS TAB
+-- ================================
+
+SettingsTab:Section({ Title = "Keybinds", Opened = true })
+
+local Keybind = SettingsTab:Keybind({
+    Title = "Toggle UI",
+    Desc = "Key to show/hide the UI",
     Value = "G",
     Callback = function(v)
         Window:SetToggleKey(Enum.KeyCode[v])
     end
 })
+myConfig:Register("Keybind", Keybind)
 
-myConfig:Register("Keybind", _G.Keybind)
-
-SettingsTab:Section({
-    Title = "Configuration",
-    TextSize = 22,
-    TextXAlignment = "Center",
-    Opened = true
-})
+SettingsTab:Section({ Title = "Configuration", Opened = true })
 
 SettingsTab:Button({
     Title = "Save Config",
-    Justify = "Center",
+    Desc = "Save current settings",
     Icon = "save",
+    Justify = "Center",
     Callback = function()
         myConfig:Save()
         WindUI:Notify({
             Title = "Config Saved",
-            Content = "Settings saved successfully",
+            Content = "Your settings have been saved",
             Duration = 3,
             Icon = "check-circle"
         })
@@ -908,25 +802,66 @@ SettingsTab:Button({
 
 SettingsTab:Button({
     Title = "Load Config",
-    Justify = "Center",
+    Desc = "Load saved settings",
     Icon = "upload",
+    Justify = "Center",
     Callback = function()
         myConfig:Load()
         WindUI:Notify({
             Title = "Config Loaded",
-            Content = "Settings loaded successfully",
+            Content = "Your settings have been loaded",
             Duration = 3,
             Icon = "check-circle"
         })
     end
 })
 
+SettingsTab:Button({
+    Title = "Reset Config",
+    Desc = "Reset to default settings",
+    Icon = "trash-2",
+    Justify = "Center",
+    Callback = function()
+        WindUI:Popup({
+            Title = "Confirm Reset",
+            Icon = "alert-triangle",
+            Content = "Are you sure you want to reset all settings to default?",
+            Buttons = {
+                { 
+                    Title = "Yes, Reset", 
+                    Variant = "Danger", 
+                    Callback = function() 
+                        myConfig:Delete()
+                        WindUI:Notify({
+                            Title = "Config Reset",
+                            Content = "All settings reset to default. Rejoin to apply.",
+                            Duration = 5,
+                            Icon = "check-circle"
+                        })
+                    end 
+                },
+                { Title = "Cancel", Variant = "Muted" },
+            }
+        })
+    end
+})
+
+-- ================================
+-- FINALIZE
+-- ================================
+
+-- Select home tab
 if Window then
     Window:SelectTab(1)
+    
     WindUI:Notify({
-        Title = "Reya HUB Ready",
-        Content = "All features loaded!",
-        Duration = 5,
+        Title = "Reya HUB Ready!",
+        Content = "All features loaded successfully. Press " .. (Keybind.Value or "G") .. " to toggle UI.",
+        Duration = 6,
         Icon = "zap"
     })
 end
+
+print("Reya HUB Enhanced - Loaded Successfully!")
+print("Version: 2.0 Stable")
+print("Game Support: " .. (gameModulesLoaded and "Enabled" or "Universal Mode"))
