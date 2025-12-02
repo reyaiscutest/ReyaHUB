@@ -2,6 +2,19 @@ local Version = "1.6.53"
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/download/" ..
 Version .. "/main.lua"))()
 
+-- == [ PERBAIKAN: CEK LIBRARY UI ] ==
+if not WindUI then
+    warn("[ReyaHUB] ❌ Gagal memuat WindUI. Periksa koneksi atau URL library!")
+    -- Kirim notifikasi menggunakan fitur bawaan Roblox (jika executor support)
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "ReyaHUB Gagal",
+        Text = "Gagal memuat UI. Periksa executor atau koneksi Anda.",
+        Duration = 10
+    })
+    return -- Hentikan eksekusi jika UI library gagal dimuat
+end
+-- == [ AKHIR PERBAIKAN ] ==
+
 -------------------------------------------
 ----- =======[ GLOBAL FUNCTION ]
 -------------------------------------------
@@ -255,7 +268,9 @@ task.spawn(function()
 end)
 
 
-local confirmed = false
+-- == [ PERBAIKAN: HAPUS BARIS PEMBLOKIRAN ] ==
+local confirmed = true -- Diubah: Otomatis True agar script tidak hang
+
 WindUI:Popup({
     Title = "ReyaHUB",
     Icon = "crown",
@@ -264,11 +279,13 @@ Thank you for using ReyaHUB.
 Don't forget Subscribe ReyaHUB Channel!
 ]],
     Buttons = {
+        -- Meskipun kita set confirmed = true di atas, kita biarkan tombol ini tetap ada
         { Title = "Start Script",  Variant = "Primary",   Callback = function() confirmed = true end },
     }
 })
 
-repeat task.wait() until confirmed
+-- Baris 'repeat task.wait() until confirmed' dihapus untuk mencegah script hang
+-- == [ AKHIR PERBAIKAN ] ==
 
 
 -------------------------------------------
@@ -319,7 +336,7 @@ local Window = WindUI:CreateWindow({
 Window:EditOpenButton({
     Title = "ReyaHUB",
    
-  Icon = "bolt", -- Mengganti ikon menjadi bolt (kilat/kecepatan)
+  Icon = "bolt", -- Ikon baru: bolt
     CornerRadius = UDim.new(0,30),
     StrokeThickness = 2,
     Color = ColorSequence.new({
@@ -339,7 +356,7 @@ WindUI:Notify({
     Title = "ReyaHUB",
     Content = "All Features Loaded!",
     Duration = 5,
-    Image = "sparkles" -- Mengganti ikon notifikasi menjadi sparkles
+    Image = "sparkles" -- Ikon baru: sparkles
 })
 
 -------------------------------------------
