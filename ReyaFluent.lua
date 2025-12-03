@@ -1,4 +1,4 @@
--- SansMobaHub dengan Fluent UI (Pink Theme)
+-- ReyaHUB dengan Fluent UI (Pink Theme)
 local Version = "1.6.53"
 
 -- Load Fluent UI Library
@@ -49,7 +49,7 @@ task.spawn(function()
         _G.TitleEnabled.Visible = true
         _G.Title.TextScaled = false
         _G.Title.TextSize = 10
-        _G.Title.Text = "SansMobaHub"
+        _G.Title.Text = "ReyaHUB"
 
         local uiStroke = Instance.new("UIStroke")
         uiStroke.Thickness = 2
@@ -110,12 +110,12 @@ local function checkStatus()
     if response == "UPDATE" then
         if not CheckData.kicked then
             CheckData.kicked = true
-            LocalPlayer:Kick("SansMobaHub Update, Rejoin & Execute Again!")
+            LocalPlayer:Kick("ReyaHUB Update, Rejoin & Execute Again!")
         end
     elseif response == "LATEST" then
         if not CheckData.notified then
             CheckData.notified = true
-            warn("[SansMobaHub] Status: Latest version")
+            warn("[ReyaHUB] Status: Latest version")
         end
     end
 end
@@ -132,8 +132,8 @@ end)
 ----- =======[ CREATE WINDOW ]
 -------------------------------------------
 local Window = Fluent:CreateWindow({
-    Title = "SansMobaHub - Pink Edition",
-    SubTitle = "Fishit | Escobar",
+    Title = "ReyaHUB - Pink Edition",
+    SubTitle = "Fishit | Ree",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
     Acrylic = true,
@@ -159,8 +159,8 @@ local Tabs = {
 ----- =======[ HOME TAB ]
 -------------------------------------------
 Tabs.Home:AddParagraph({
-    Title = "💖 SansMobaHub",
-    Content = "Welcome to SansMobaHub!\n\nCreated by: Escobar\nYouTube: SansMoba\n\nUse this script wisely and enjoy fishing!"
+    Title = "💖 ReyaHUB",
+    Content = "Welcome to ReyaHUB!\n\nCreated by: Escobar\nYouTube: SansMoba\n\nUse this script wisely and enjoy fishing!"
 })
 
 -- Discord Info Section
@@ -462,10 +462,10 @@ Tabs.Settings:AddButton({
 -------------------------------------------
 ----- =======[ FINALIZATION ]
 -------------------------------------------
-Notify("SansMobaHub Loaded!", "Welcome " .. LocalPlayer.Name .. "! All features ready.", 5)
+Notify("ReyaHUB Loaded!", "Welcome " .. LocalPlayer.Name .. "! All features ready.", 5)
 
 -- Save window reference
-_G.SansMobaWindow = Window
-_G.SansMobaTabs = Tabs
+_G.ReyaHubWindow = Window
+_G.ReyaHubTabs = Tabs
 
-print("[SansMobaHub] Successfully loaded with Pink Theme!")
+print("[ReyaHUB] Successfully loaded with Pink Theme!")
